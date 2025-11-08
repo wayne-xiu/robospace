@@ -1,0 +1,61 @@
+# Build directories
+build/
+cmake-build-*/
+dist/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+compile_commands.json
+
+# C++ build artifacts
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
+# Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg
+pip-log.txt
+
+# Documentation
+docs/build/
+docs/_build/
+*.doxygen_sqlite3
+html/
+latex/
+
+# Tests
+test_results/
+*.gcov
+*.gcda
+*.gcno
+
+# Conan/vcpkg
+conan.lock
+vcpkg_installed/
+
+# Temporary files
+*.tmp
+*.log
