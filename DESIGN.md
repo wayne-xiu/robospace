@@ -1,8 +1,8 @@
 # Robospace: Architecture & Design Document
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** 2025-11-08
-**Status:** Updated with Machine Tool & Metrology Support
+**Status:** Updated with Lie Algebra, Modern Robotics, and Item Pattern
 
 ---
 
@@ -209,28 +209,113 @@ Hardware (Robots, Cameras, Sensors)
 
 ### 1. Math Library (`core/math`)
 
-**Purpose**: Foundational mathematical operations for robotics
+**Purpose**: Foundational mathematical operations for robotics with support for both classical and modern approaches
+
+**Mathematical Representations**:
+
+Robospace supports **two complementary mathematical frameworks**:
+
+1. **Classical Approach**: Homogeneous matrices (4×4 transformations)
+   - Widely used in industrial robotics
+   - Direct geometric interpretation
+   - Compatible with most existing tools
+
+2. **Modern Robotics Approach**: Lie groups and Lie algebras
+   - SE(3)/SO(3) Lie groups for configurations
+   - se(3)/so(3) Lie algebras for velocities
+   - Product of Exponentials (PoE) formula
+   - Superior for optimization (calibration, trajectory planning)
+   - Based on *Modern Robotics* (Lynch & Park, 2017)
 
 **Components**:
-- **Transform**: SE(3) transformations, homogeneous matrices
+
+#### Classical Representations
+- **Transform**: SE(3) transformations, 4×4 homogeneous matrices
 - **Rotation**: SO(3) rotations (rotation matrices, quaternions, Euler angles, axis-angle)
-- **Vector/Matrix**: Thin wrappers around Eigen with robotics-specific operations
+- **DH Parameters**: Modified/standard Denavit-Hartenberg parameters
 - **Interpolation**: Linear, cubic spline, SLERP for rotations
-- **Utilities**: Angle normalization, numeric differentiation
+
+#### Modern Robotics / Lie Theory
+- **SE3**: Special Euclidean group (rigid body transformations)
+- **SO3**: Special Orthogonal group (rotations)
+- **se3**: Lie algebra of SE(3) - twists (spatial/body velocities)
+- **so3**: Lie algebra of SO(3) - angular velocities
+- **Screw Theory**: Unified representation of motion and forces
+- **Exponential Map**: se(3) → SE(3), so(3) → SO(3)
+- **Logarithm Map**: SE(3) → se(3), SO(3) → so(3)
+- **Adjoint**: Coordinate frame transformations for twists/wrenches
+
+#### Utilities
+- **Manifold Operations**: Geodesics, parallel transport
+- **Angle Normalization**: Wrap angles to [-π, π]
+- **Numeric Differentiation**: Finite differences on manifolds
+- **Matrix Exponential/Logarithm**: Efficient implementations
 
 **Key Classes**:
 ```cpp
 namespace robospace::math {
-    class Transform;     // SE(3) rigid transformation
-    class Rotation;      // SO(3) rotation representation
-    class Vector3;       // 3D vector
-    class Quaternion;    // Unit quaternion
-    class Twist;         // Velocity in SE(3)
-    class Wrench;        // Force-torque in SE(3)
+    // Classical representations
+    class Transform;        // SE(3) as 4×4 homogeneous matrix
+    class Rotation;         // SO(3) rotation representation
+    class Vector3;          // 3D vector
+    class Quaternion;       // Unit quaternion
+
+    // Lie group representations (Modern Robotics)
+    class SE3;              // SE(3) Lie group element
+    class SO3;              // SO(3) Lie group element
+    class se3;              // se(3) Lie algebra element (twist)
+    class so3;              // so(3) Lie algebra element (angular velocity)
+
+    // Screw theory
+    class Twist;            // Spatial/body velocity (se(3))
+    class Wrench;           // Spatial/body force-torque
+    class Screw;            // Screw axis representation
+    class Adjoint;          // Adjoint transformation
+
+    // Conversions between representations
+    SE3 homogeneous_to_se3(const Transform& T);
+    Transform se3_to_homogeneous(const SE3& g);
+    se3 twist_to_se3(const Twist& V);
+    Twist se3_to_twist(const se3& xi);
+
+    // Exponential and logarithm maps
+    SE3 exp_se3(const se3& xi);        // Exponential map: se(3) → SE(3)
+    se3 log_SE3(const SE3& g);         // Logarithm map: SE(3) → se(3)
+    SO3 exp_so3(const so3& omega);     // Exponential map: so(3) → SO(3)
+    so3 log_SO3(const SO3& R);         // Logarithm map: SO(3) → so(3)
+
+    // Adjoint transformations
+    Eigen::Matrix6d adjoint_SE3(const SE3& g);
+    Eigen::Matrix6d adjoint_se3(const se3& xi);
 }
 ```
 
-**Dependencies**: Eigen
+**Advantages of Dual Representation**:
+
+1. **Flexibility**: Choose the right tool for the task
+   - Use homogeneous matrices for forward kinematics (clarity)
+   - Use Lie algebra for optimization (manifold structure)
+   - Use screws for velocity analysis (elegance)
+
+2. **Optimization**: Lie algebra is superior for:
+   - Robot calibration (unconstrained optimization on ℝ⁶)
+   - Trajectory optimization (smooth geodesics)
+   - Sensor fusion (averaging on manifolds)
+
+3. **Numerical Stability**:
+   - Exponential map ensures valid SE(3) transformations
+   - No need for re-orthogonalization
+
+4. **Theoretical Foundation**:
+   - Rigorous mathematical framework
+   - Connections to differential geometry
+   - Natural for continuous-time dynamics
+
+**Implementation References**:
+- **Modern Robotics**: [ModernRobotics library](https://github.com/NxRLab/ModernRobotics) - reference implementation
+- **Sophus**: C++ Lie algebra library (optional dependency for validation)
+
+**Dependencies**: Eigen (primary), Sophus (optional for testing)
 
 ---
 
@@ -307,35 +392,112 @@ namespace robospace::machine_tools {
 
 ### 3. Kinematics (`core/kinematics`)
 
-**Purpose**: Forward and inverse kinematics calculations
+**Purpose**: Forward and inverse kinematics calculations using both classical and modern approaches
+
+**Kinematic Formulations**:
+
+Robospace supports **two complementary approaches** for robot kinematics:
+
+1. **Denavit-Hartenberg (DH) Parameters** (Classical)
+   - Standard and modified DH conventions
+   - Widely used in industrial robotics
+   - Robot-specific analytical solutions available
+   - Compatible with URDF standard
+
+2. **Product of Exponentials (PoE) Formula** (Modern Robotics)
+   - Based on screw theory and Lie algebra
+   - More geometric and intuitive
+   - Natural for arbitrary kinematic structures
+   - Superior for optimization and calibration
+   - Reference: *Modern Robotics* Chapter 4
 
 **Components**:
 - **Forward Kinematics (FK)**: Joint positions → end-effector pose
+  - DH-based FK (chain of local transformations)
+  - PoE-based FK (exponential of joint screws)
 - **Inverse Kinematics (IK)**: End-effector pose → joint positions
-  - Analytical IK (6-DOF industrial robots)
-  - Numerical IK (Jacobian-based, TRAC-IK)
+  - Analytical IK (6-DOF industrial robots: UR, ABB, KUKA, Fanuc)
+  - Numerical IK (general-purpose: Jacobian-based, optimization)
+  - Numerical IK using Lie algebra (manifold-aware optimization)
+  - TRAC-IK algorithm
 - **Jacobian**: Velocity kinematics, singularity analysis
-- **Differential IK**: Velocity-level IK
+  - Geometric Jacobian (from DH parameters)
+  - Space/Body Jacobian (from screw axes)
+- **Differential IK**: Velocity-level IK using Jacobian pseudo-inverse
 
 **Key Classes**:
 ```cpp
 namespace robospace::kinematics {
-    class ForwardKinematics;
-    class InverseKinematics;
+    // Forward Kinematics
+    class ForwardKinematics;           // Base class
+    class DHForwardKinematics;         // DH parameter-based
+    class PoEForwardKinematics;        // Product of Exponentials
+
+    // Inverse Kinematics
+    class InverseKinematics;           // Base class
+    class AnalyticalIK;                // Closed-form solutions
+    class NumericalIK;                 // Iterative solvers
+    class LieAlgebraIK;                // Optimization on manifolds
+
+    // Jacobian
     class JacobianCalculator;
-    class IKSolver;           // Base class
-    class AnalyticalIK;       // Robot-specific
-    class NumericalIK;        // General-purpose
+    class GeometricJacobian;           // From DH parameters
+    class ScrewJacobian;               // Space/body Jacobian from screws
+
+    // Screw-based kinematics (Modern Robotics)
+    class ScrewAxis;                   // Screw axis representation
+    class ExponentialMap;              // exp: se(3) → SE(3)
+    class PoEKinematics;               // Product of exponentials FK
 }
 ```
 
 **Algorithms**:
-- DH parameter-based FK
-- Analytical IK for common 6-DOF manipulators (UR, ABB, KUKA)
-- Damped least squares
-- TRAC-IK algorithm
 
-**Dependencies**: Eigen, model module
+*Classical Approach:*
+- DH parameter-based FK (sequential transforms)
+- Analytical IK for common 6-DOF manipulators (UR, ABB, KUKA, Fanuc)
+- Geometric Jacobian from DH parameters
+- Damped least squares (DLS) IK
+- TRAC-IK algorithm (hybrid analytical/numerical)
+
+*Modern Robotics Approach:*
+- Product of Exponentials FK: T(θ) = e^[S₁]θ₁ e^[S₂]θ₂ ... e^[Sₙ]θₙ M
+- Space Jacobian: J_s = [J_s1, J_s2, ..., J_sn]
+- Body Jacobian: J_b = [Ad_T J_s]
+- Numerical IK on SE(3) manifold (avoids singularities in parameterization)
+- Subproblem decomposition for analytical solutions
+
+**Example: Dual Approach**
+
+```cpp
+// Classical DH-based approach
+DHForwardKinematics fk_dh(robot);
+Transform T_dh = fk_dh.compute(joint_angles);
+
+// Modern PoE-based approach
+PoEForwardKinematics fk_poe(screw_axes, M);
+SE3 T_poe = fk_poe.compute(joint_angles);
+
+// Both should give the same result
+assert((T_dh.matrix() - se3_to_homogeneous(T_poe).matrix()).norm() < 1e-10);
+
+// For calibration, use PoE (easier to optimize screw axes)
+RobotCalibrator calibrator;
+calibrator.set_formulation(KinematicsFormulation::ProductOfExponentials);
+auto calibrated_screws = calibrator.optimize(measurements);
+```
+
+**Use Cases for Each Approach**:
+
+| Task | Preferred Approach | Reason |
+|------|-------------------|--------|
+| Standard FK | DH parameters | Fast, well-tested, URDF compatible |
+| Robot Calibration | PoE formula | Easier to optimize (fewer constraints) |
+| Custom kinematics | PoE formula | More flexible, handles arbitrary chains |
+| Analytical IK | DH parameters | Closed-form solutions available |
+| Velocity kinematics | Screw Jacobian | More intuitive, fewer singularities |
+
+**Dependencies**: Eigen, model module, math module (SE3/se3 classes)
 
 ---
 
@@ -2035,8 +2197,16 @@ class JointState(BaseModel):
 
 **Robotics**:
 1. Craig, J. J. (2005). *Introduction to Robotics: Mechanics and Control*
+   - Classical approach using DH parameters and homogeneous transformations
 2. Siciliano, B., et al. (2009). *Robotics: Modelling, Planning and Control*
-3. Lynch, K. M., & Park, F. C. (2017). *Modern Robotics*
+   - Comprehensive coverage of robot modeling and control
+3. **Lynch, K. M., & Park, F. C. (2017). *Modern Robotics: Mechanics, Planning, and Control*** ⭐
+   - **Key Resource for Lie Algebra/Lie Group Theory**: Foundation for SE(3)/SO(3) representations in robospace
+   - **Implementation Reference**: [ModernRobotics library](https://github.com/NxRLab/ModernRobotics) - C++, Python, MATLAB implementations
+   - **Product of Exponentials**: Alternative to DH parameters, superior for calibration and optimization
+   - **Screw Theory**: Unified treatment of rigid body motion and forces
+   - **Covered Topics**: Lie groups, exponential coordinates, kinematics, dynamics, trajectory planning
+   - **Application in Robospace**: Math library SE(3)/se(3) classes, PoE kinematics, robot calibration
 
 **Robotics, Vision & Control**:
 1. **Corke, P. (2017). *Robotics, Vision and Control: Fundamental Algorithms In MATLAB* (2nd ed.)** ⭐
@@ -2065,6 +2235,7 @@ class JointState(BaseModel):
 |---------|------|--------|---------|
 | 1.0 | 2025-11-08 | Initial | First draft of design document |
 | 1.1 | 2025-11-08 | Update | Added machine tool support, metrology integration, Peter Corke references |
+| 1.2 | 2025-11-08 | Update | Added Lie algebra/Lie group support (Modern Robotics), dual kinematic formulations (DH + PoE), RoboDK Item pattern analysis |
 
 ---
 
