@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "core/math/rotation.hpp"
+#include <robospace/math/rotation.hpp>
 
 using namespace robospace::math;
 

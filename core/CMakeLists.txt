@@ -2,26 +2,26 @@
 
 # Math module
 set(MATH_SOURCES
-    math/transform.cpp
-    math/rotation.cpp
-    math/se3.cpp
-    math/SE3.cpp
-    math/so3.cpp
-    math/SO3.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/transform.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/rotation.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/se3.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/SE3.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/so3.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/SO3.cpp
 )
 
 set(MATH_HEADERS
-    math/transform.hpp
-    math/rotation.hpp
-    math/se3.hpp
-    math/SE3.hpp
-    math/so3.hpp
-    math/SO3.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/transform.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/rotation.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/se3.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/SE3.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/so3.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/SO3.hpp
 )
 
 add_library(robospace-math ${MATH_SOURCES} ${MATH_HEADERS})
 target_include_directories(robospace-math PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(robospace-math PUBLIC Eigen3::Eigen)

@@ -1,4 +1,4 @@
-#include "SE3.hpp"
+#include <robospace/math/SE3.hpp>
 #include <cmath>
 
 namespace robospace {

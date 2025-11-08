@@ -40,7 +40,7 @@ FetchContent_MakeAvailable(Eigen3)
 
 # Include directories
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # Add subdirectories
@@ -60,8 +60,8 @@ if(BUILD_EXAMPLES)
 endif()
 
 # Installation
-install(DIRECTORY core/
-    DESTINATION include/robospace
+install(DIRECTORY include/
+    DESTINATION include
     FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
 )
 

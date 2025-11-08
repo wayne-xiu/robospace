@@ -1,5 +1,5 @@
-#include "so3.hpp"
-#include "se3.hpp"  // for skew() and unskew()
+#include <robospace/math/so3.hpp>
+#include <robospace/math/se3.hpp>  // for skew() and unskew()
 #include <stdexcept>
 
 namespace robospace {

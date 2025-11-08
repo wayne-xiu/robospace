@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "core/math/SO3.hpp"
+#include <robospace/math/SO3.hpp>
 
 using namespace robospace::math;
 

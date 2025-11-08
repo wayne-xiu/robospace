@@ -1,6 +1,6 @@
 #pragma once
 
-#include "se3.hpp"
+#include <robospace/math/se3.hpp>
 #include <Eigen/Dense>
 #include <iostream>
 
