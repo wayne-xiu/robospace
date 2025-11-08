@@ -1,9 +1,9 @@
 # Robospace Makefile
 # Provides convenient targets for building, testing, and development
 
-.PHONY: help configure-debug configure-release build build-cpp build-python \
-        test test-cpp test-python clean clean-all install install-cpp \
-        install-python format lint docs
+.PHONY: help configure-debug configure-release configure-dev build build-cpp \
+        build-python test test-cpp test-python clean clean-all install \
+        install-cpp install-python format lint docs
 
 # Default target
 help:
@@ -11,8 +11,9 @@ help:
 	@echo "=============================="
 	@echo ""
 	@echo "Configuration:"
-	@echo "  configure-debug   - Configure CMake for debug build"
-	@echo "  configure-release - Configure CMake for release build (default)"
+	@echo "  configure-debug   - Configure CMake for debug build (with tests)"
+	@echo "  configure-release - Configure CMake for release build (no tests)"
+	@echo "  configure-dev     - Configure for development (Release + tests + compile_commands)"
 	@echo ""
 	@echo "Building:"
 	@echo "  build            - Build C++ library and Python bindings"
@@ -49,28 +50,38 @@ NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 #
 
 configure-debug:
-	@echo "Configuring CMake (Debug)..."
+	@echo "Configuring CMake (Debug with tests)..."
 	@mkdir -p $(BUILD_DIR)
 	cd $(BUILD_DIR) && cmake .. \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DBUILD_TESTS=ON \
-		-DBUILD_PYTHON=ON \
+		-DBUILD_PYTHON=OFF \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@echo "✓ Configuration complete (Debug)"
 
 configure-release:
-	@echo "Configuring CMake (Release)..."
+	@echo "Configuring CMake (Release for deployment)..."
+	@mkdir -p $(BUILD_DIR)
+	cd $(BUILD_DIR) && cmake .. \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DBUILD_TESTS=OFF \
+		-DBUILD_PYTHON=OFF \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF
+	@echo "✓ Configuration complete (Release)"
+
+configure-dev:
+	@echo "Configuring CMake (Development mode)..."
 	@mkdir -p $(BUILD_DIR)
 	cd $(BUILD_DIR) && cmake .. \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DBUILD_TESTS=ON \
-		-DBUILD_PYTHON=ON \
+		-DBUILD_PYTHON=OFF \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-	@echo "✓ Configuration complete (Release)"
+	@echo "✓ Configuration complete (Dev mode)"
 
-# Auto-configure if build directory doesn't exist
+# Auto-configure if build directory doesn't exist (use dev mode for convenience)
 $(BUILD_DIR)/Makefile:
-	@$(MAKE) configure-release
+	@$(MAKE) configure-dev
 
 #
 # Building
