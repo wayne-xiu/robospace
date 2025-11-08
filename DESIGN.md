@@ -1,8 +1,8 @@
 # Robospace: Architecture & Design Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2025-11-08
-**Status:** Initial Design
+**Status:** Updated with Machine Tool & Metrology Support
 
 ---
 
@@ -32,10 +32,13 @@
 
 - **Modern Web UI**: Browser-based 3D visualization and control (no Qt dependencies)
 - **Computer Vision First-Class**: Built-in machine vision for robotics applications
+- **Machine Tool Support**: Unified modeling of robots AND machine tools (CNC, mills, lathes)
+- **Metrology Integration**: Built-in support for laser trackers, scanners, and inspection workflows
 - **Dual-Language Core**: C++ for performance-critical operations, Python for accessibility
 - **Modular Architecture**: Composable libraries that can be used independently or together
 - **Cloud-Ready**: Deployable locally or in cloud environments
 - **Industry-Focused**: Targeting industrial automation and collaborative robotics
+- **Proven Algorithms**: Core algorithms based on established work (Peter Corke's Robotics, Vision & Control)
 
 ---
 
@@ -259,6 +262,49 @@ namespace robospace::model {
 
 ---
 
+### 2.5 Machine Tool Model (`machine_tools/model`)
+
+**Purpose**: Representation of machine tools (CNC machines, mills, lathes) with unified interface
+
+**Components**:
+- **Machine Tool Types**: 3-axis mill, 5-axis mill, lathe, Swiss-type lathe
+- **Axis Configuration**: Linear axes (X, Y, Z), rotary axes (A, B, C)
+- **Work Coordinate Systems**: Multiple WCS, fixture offsets
+- **Tool Management**: Tool library, tool changers, tool offsets
+- **Kinematics**: Similar to robot kinematics but for machine tools
+- **Workspace Limits**: Travel limits, collision zones, safe zones
+
+**Key Classes**:
+```cpp
+namespace robospace::machine_tools {
+    class MachineTool;          // Base class for all machine tools
+    class ThreeAxisMill;        // 3-axis milling machine
+    class FiveAxisMill;         // 5-axis milling machine
+    class Lathe;                // Turning center
+    class Axis;                 // Linear or rotary axis
+    class Tool;                 // Cutting tool
+    class WorkCoordinate;       // Work coordinate system (WCS)
+    class Spindle;              // Spindle configuration
+}
+```
+
+**Features**:
+- **Unified API**: Treat machine tools like robots (forward kinematics, planning)
+- **Toolpath Simulation**: Visualize cutting operations
+- **G-code Integration**: Parse and generate G-code
+- **Collision Avoidance**: Machine component collision checking
+- **Multi-axis Coordination**: Synchronized motion of multiple axes
+
+**Example Use Cases**:
+- Robot-machine tool cell programming
+- Part inspection on CMM (Coordinate Measuring Machine)
+- Hybrid manufacturing (robot + machine tool)
+- Digital twin of manufacturing cell
+
+**Dependencies**: Eigen, core/model, core/kinematics
+
+---
+
 ### 3. Kinematics (`core/kinematics`)
 
 **Purpose**: Forward and inverse kinematics calculations
@@ -464,7 +510,114 @@ namespace robospace::vision {
 
 ---
 
-### 9. Hardware Abstraction (`hardware/`)
+### 9. Metrology & Inspection (`metrology/`)
+
+**Purpose**: Integration of metrology sensors for robot calibration, inspection, and quality control
+
+**Components**:
+
+#### 9.1 Laser Tracker (`metrology/laser_tracker`)
+- **Laser Tracker Driver**: Interface for API, Leica, FARO laser trackers
+- **Target Tracking**: SMR (Spherically Mounted Retroreflector) tracking
+- **Robot Calibration**: Kinematic calibration using laser tracker measurements
+- **Accuracy Verification**: Robot positioning accuracy measurement
+- **Volumetric Compensation**: Error mapping and compensation
+
+#### 9.2 Laser Scanner (`metrology/laser_scanner`)
+- **3D Scanner Integration**: Structured light, line laser scanners
+- **Point Cloud Acquisition**: High-density 3D scanning
+- **Robot-Mounted Scanning**: Automated scanning with robot manipulation
+- **Scan Planning**: Optimal viewpoint planning for complete coverage
+- **Surface Inspection**: Deviation analysis, quality control
+
+#### 9.3 Inspection (`metrology/inspection`)
+- **Part Measurement**: Dimensional inspection, GD&T verification
+- **Surface Analysis**: Flatness, roughness, deviation from CAD
+- **Comparison Tools**: Point cloud to CAD comparison
+- **Inspection Planning**: Automated measurement path generation
+- **Reporting**: Inspection reports with pass/fail criteria
+
+#### 9.4 Calibration (`metrology/calibration`)
+- **Robot Calibration**: DH parameter identification
+- **Base-to-World Calibration**: Robot base frame in world coordinates
+- **Tool Calibration**: TCP (Tool Center Point) calibration
+- **Multi-Robot Calibration**: Relative pose between robots
+- **Sensor Calibration**: Camera, force sensor calibration using metrology
+
+**Key Classes**:
+```cpp
+namespace robospace::metrology {
+    // Laser Tracker
+    class LaserTracker;         // Base interface
+    class APITracker;           // API Radian/T3 laser tracker
+    class LeicaTracker;         // Leica AT series
+    class FAROTracker;          // FARO laser tracker
+    class SMRTarget;            // Spherically mounted retroreflector
+
+    // Laser Scanner
+    class LaserScanner;         // 3D scanner interface
+    class StructuredLight;      // Structured light scanner
+    class LineScanner;          // Line laser scanner
+    class ScanPath;             // Scanning path planning
+
+    // Inspection
+    class Inspector;            // Inspection coordinator
+    class MeasurementPoint;     // Single measurement
+    class Deviation;            // CAD deviation result
+    class InspectionReport;     // Report generation
+
+    // Calibration
+    class RobotCalibrator;      // Robot kinematic calibration
+    class HandEyeCalibrator;    // Extended from vision module
+    class TCPCalibrator;        // Tool center point calibration
+}
+```
+
+**Algorithms**:
+- **Bundle Adjustment**: Multi-view calibration optimization
+- **ICP (Iterative Closest Point)**: Point cloud registration
+- **Levenberg-Marquardt**: Non-linear optimization for calibration
+- **RANSAC**: Robust fitting for outlier rejection
+
+**Integration with Simulation**:
+- **Simulated Laser Tracker**: Virtual tracker for testing calibration workflows
+- **Simulated Scanner**: Generate synthetic scans with noise models
+- **Measurement Uncertainty**: Model sensor accuracy and repeatability
+- **Virtual Inspection**: Test inspection programs in simulation
+
+**Example Workflow**:
+```python
+import robospace as rs
+import robospace.metrology as rsm
+
+# Connect to laser tracker
+tracker = rsm.APITracker("192.168.1.100")
+tracker.connect()
+
+# Robot calibration using laser tracker
+calibrator = rsm.RobotCalibrator(robot, tracker)
+calibrator.add_measurement_pose([0, 0, 0, 0, 0, 0])
+calibrator.add_measurement_pose([0.5, 0, 0, 0, 0, 0])
+# ... add more poses
+
+calibrated_params = calibrator.calibrate()
+robot.update_parameters(calibrated_params)
+
+# Part inspection with laser scanner
+scanner = rsm.LineScanner()
+inspector = rsm.Inspector(robot, scanner)
+inspector.load_cad_model("part.stl")
+scan_path = inspector.plan_scan_path(coverage=0.95)
+point_cloud = inspector.execute_scan(scan_path)
+deviations = inspector.compare_to_cad(point_cloud)
+report = inspector.generate_report(deviations)
+```
+
+**Dependencies**: OpenCV, PCL, Eigen, core/kinematics, vision
+
+---
+
+### 10. Hardware Abstraction (`hardware/`)
 
 **Purpose**: Unified interface for robot hardware
 
@@ -475,12 +628,19 @@ namespace robospace::vision {
 - **Manufacturer Drivers**: UR, ABB, KUKA, Fanuc plugins
 - **Communication**: TCP/IP, UDP, EtherCAT, Modbus
 
-#### 9.2 I/O (`hardware/io`)
+#### 10.2 I/O (`hardware/io`)
 - **Digital I/O**: GPIO control
 - **Analog I/O**: Sensor reading
 - **Network I/O**: Socket communication
 
-#### 9.3 Controllers (`hardware/controllers`)
+#### 10.3 Sensor Drivers (`hardware/sensors`)
+- **Force/Torque Sensors**: ATI, Robotiq FT sensors
+- **Laser Trackers**: API, Leica, FARO drivers
+- **Laser Scanners**: Various 3D scanner protocols
+- **Vision Sensors**: Industrial cameras (Basler, FLIR)
+- **Proximity Sensors**: Range finders, ToF sensors
+
+#### 10.4 Controllers (`hardware/controllers`)
 - **Position Control**: Joint/Cartesian position
 - **Velocity Control**: Joint/Cartesian velocity
 - **Force Control**: Impedance, admittance control
@@ -693,6 +853,113 @@ for marker in markers:
 
     # Transform to robot frame
     object_in_robot = camera_to_robot * pose
+```
+
+**Example: Machine Tool API**
+
+```python
+import robospace as rs
+import robospace.machine_tools as rsmt
+
+# Load 5-axis mill
+mill = rsmt.FiveAxisMill.from_config("dmg_dmu50.yaml")
+
+# Setup work coordinate system
+wcs = rsmt.WorkCoordinate(origin=[100, 200, 0], rotation=[0, 0, 0])
+mill.set_work_coordinate(wcs, g_code="G54")
+
+# Load tool
+tool = rsmt.Tool(diameter=10, length=75, type="end_mill")
+mill.load_tool(tool, tool_number=1)
+
+# Compute machine tool kinematics (similar to robot FK)
+axis_positions = {"X": 100, "Y": 50, "Z": 200, "A": 0, "C": 45}
+tcp_pose = mill.forward_kinematics(axis_positions)
+
+# Check collision with machine components
+scene = rs.PlanningScene()
+scene.add_machine_tool(mill)
+scene.add_box("fixture", position=[100, 200, 50], size=[200, 150, 100])
+is_collision = scene.check_collision()
+
+# Simulate G-code
+gcode_program = rsmt.GCodeParser.from_file("part.nc")
+simulator = rsmt.ToolpathSimulator(mill)
+for block in gcode_program:
+    simulator.step(block)
+    # Visualize in web interface
+```
+
+**Example: Robot-Machine Tool Cell**
+
+```python
+import robospace as rs
+
+# Setup cell with robot and machine tool
+robot = rs.Robot.from_urdf("ur10e.urdf")
+mill = rs.FiveAxisMill.from_config("okuma_mb4000h.yaml")
+
+# Create unified cell
+cell = rs.ManufacturingCell()
+cell.add_robot(robot, "robot1", base_pose=[0, 0, 0])
+cell.add_machine_tool(mill, "mill1", base_pose=[2000, 0, 0])
+
+# Plan robot motion to load part into mill
+part_in_robot = rs.Transform(translation=[0.5, 0.2, 0.1])
+part_in_mill = mill.get_work_table_pose() * rs.Transform(translation=[0, 0, 0.05])
+
+# Robot picks part and moves to mill
+pick_traj = robot.plan_to_pose(part_in_robot)
+robot.execute(pick_traj)
+
+# Coordinate with mill (open door, wait)
+mill.open_door()
+load_traj = robot.plan_to_pose(part_in_mill)
+robot.execute(load_traj)
+robot.open_gripper()
+
+# Mill processes part
+mill.close_door()
+mill.execute_gcode("part_program.nc")
+
+# Robot unloads part
+# ... coordinated motion planning
+```
+
+**Example: Metrology-Based Calibration**
+
+```python
+import robospace as rs
+import robospace.metrology as rsm
+
+# High-precision robot calibration with laser tracker
+robot = rs.Robot.from_urdf("kuka_kr210.urdf")
+tracker = rsm.APITracker("192.168.1.100")
+
+# Attach SMR to robot end-effector
+calibrator = rsm.RobotCalibrator(robot, tracker)
+calibrator.attach_smr_to_tcp()
+
+# Automated measurement sequence
+measurement_poses = calibrator.generate_measurement_poses(
+    workspace_coverage=0.8,
+    num_poses=50
+)
+
+for pose in measurement_poses:
+    robot.move_to(pose)
+    time.sleep(0.5)  # Let tracker stabilize
+    measurement = tracker.measure()
+    calibrator.add_measurement(pose, measurement)
+
+# Identify DH parameters
+calibrated_params = calibrator.calibrate()
+print(f"Position accuracy before: {calibrator.error_before:.3f} mm")
+print(f"Position accuracy after: {calibrator.error_after:.3f} mm")
+
+# Update robot model
+robot.update_dh_parameters(calibrated_params)
+robot.save_calibration("kuka_kr210_calibrated.yaml")
 ```
 
 ---
@@ -1109,9 +1376,9 @@ async def compute_inverse_kinematics(
 
 ---
 
-### Phase 5: Computer Vision (Months 9-10)
+### Phase 5: Computer Vision & Metrology (Months 9-10)
 
-**Goal**: Vision integration for robotics
+**Goal**: Vision integration and metrology sensor support
 
 **Tasks**:
 - [ ] Camera calibration tools
@@ -1122,21 +1389,30 @@ async def compute_inverse_kinematics(
 - [ ] Object detection integration
 - [ ] Visual servoing basics (PBVS)
 - [ ] Python vision API
+- [ ] **Laser tracker integration** (API, Leica, FARO)
+- [ ] **Robot calibration using laser tracker**
+- [ ] **3D laser scanner support**
+- [ ] **Part inspection workflows**
 - [ ] Web interface for calibration
 - [ ] Live camera feed display
 - [ ] Detection overlay visualization
+- [ ] **Metrology measurement visualization**
 
 **Deliverables**:
 - Vision library for robotics
 - Calibration tools
+- Metrology sensor integration
+- Robot calibration tools
 - Web-based vision interface
 
 **Testing**:
 - Calibration accuracy (reprojection error < 0.5px)
 - Pose estimation accuracy (< 5mm, < 5°)
 - Detection frame rate (> 30 FPS)
+- **Laser tracker accuracy (< 15μm + 6μm/m)**
+- **Robot calibration improvement (< 0.2mm TCP accuracy)**
 
-**Milestone**: Vision-guided pick-and-place demo
+**Milestone**: Vision-guided pick-and-place demo + Robot calibration with laser tracker
 
 ---
 
@@ -1171,9 +1447,9 @@ async def compute_inverse_kinematics(
 
 ---
 
-### Phase 7: Advanced Features (Months 13-15)
+### Phase 7: Advanced Features & Machine Tools (Months 13-15)
 
-**Goal**: Production-ready capabilities
+**Goal**: Production-ready capabilities and machine tool support
 
 **Tasks**:
 - [ ] Advanced planning (CHOMP, TrajOpt)
@@ -1184,6 +1460,11 @@ async def compute_inverse_kinematics(
 - [ ] Task-level programming interface
 - [ ] Grasp planning (basic)
 - [ ] Machine learning integration (PyTorch/TF)
+- [ ] **Machine tool modeling** (3-axis, 5-axis mills, lathes)
+- [ ] **Machine tool kinematics and simulation**
+- [ ] **G-code parser and generator**
+- [ ] **Toolpath visualization**
+- [ ] **Robot-machine tool cell programming**
 - [ ] Multi-user support (authentication)
 - [ ] Project save/load functionality
 - [ ] Performance optimization
@@ -1192,13 +1473,17 @@ async def compute_inverse_kinematics(
 - Advanced planning algorithms
 - Force control capabilities
 - Offline programming tool
+- **Machine tool support (unified with robots)**
+- **Robot-machine cell programming**
 
 **Testing**:
 - Planning benchmarks (success rate, quality)
 - Force control accuracy
+- **Machine tool kinematics accuracy**
+- **G-code parsing correctness**
 - System integration tests
 
-**Milestone**: Production-ready for industrial applications
+**Milestone**: Production-ready for industrial applications + Robot-machine tool cells
 
 ---
 
@@ -1753,6 +2038,13 @@ class JointState(BaseModel):
 2. Siciliano, B., et al. (2009). *Robotics: Modelling, Planning and Control*
 3. Lynch, K. M., & Park, F. C. (2017). *Modern Robotics*
 
+**Robotics, Vision & Control**:
+1. **Corke, P. (2017). *Robotics, Vision and Control: Fundamental Algorithms In MATLAB* (2nd ed.)** ⭐
+   - **Key Resource**: This book and the accompanying [robotics-toolbox-python](https://github.com/petercorke/robotics-toolbox-python) repository serve as primary algorithmic references for robospace
+   - **Implementation Strategy**: Core algorithms are based on proven methods from this work, but implemented in C++ for performance with Python bindings
+   - **API Design Inspiration**: Python API design influenced by the clean, intuitive interface of the Robotics Toolbox
+   - **Covered Topics**: Kinematics, dynamics, trajectory generation, vision geometry, visual servoing
+
 **Computer Vision**:
 1. Hartley, R., & Zisserman, A. (2004). *Multiple View Geometry*
 2. Szeliski, R. (2022). *Computer Vision: Algorithms and Applications*
@@ -1772,10 +2064,25 @@ class JointState(BaseModel):
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-11-08 | Initial | First draft of design document |
+| 1.1 | 2025-11-08 | Update | Added machine tool support, metrology integration, Peter Corke references |
 
 ---
 
 **Document Status**: ✅ Ready for Review
+
+**Key Design Principles**:
+
+1. **Algorithmic Foundation**: Core algorithms based on proven work from Peter Corke's *Robotics, Vision and Control* and the robotics-toolbox-python repository, implemented in C++ for performance
+
+2. **Unified Modeling**: Treat robots and machine tools (CNC machines, mills, lathes) with the same unified interface - both are kinematic chains that can be modeled, simulated, and programmed
+
+3. **Metrology-First**: Built-in support for metrology sensors (laser trackers, laser scanners) for robot calibration, part inspection, and quality control - not an afterthought but a core capability
+
+4. **Industrial Focus**: Designed for real-world industrial applications including:
+   - Robot-machine tool cells
+   - Part inspection and quality control
+   - Precision calibration and accuracy improvement
+   - Manufacturing automation
 
 **Next Steps**:
 1. Review and approve design document
