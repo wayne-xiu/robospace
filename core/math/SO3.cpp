@@ -12,7 +12,8 @@ SO3::SO3() {
 SO3::SO3(const Eigen::Matrix3d& R) : R_(R) {}
 
 SO3::SO3(const Eigen::Vector3d& axis, double angle) {
-    *this = exp_so3(so3(axis * angle));
+    Eigen::Vector3d omega = axis * angle;
+    *this = exp_so3(so3(omega));
 }
 
 SO3 SO3::Identity() {

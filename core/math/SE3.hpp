@@ -102,7 +102,7 @@ public:
      * @brief Adjoint transformation matrix
      * @return 6×6 adjoint matrix Ad_g
      */
-    Eigen::Matrix6d adjoint() const;
+    Matrix6d adjoint() const;
 
     /**
      * @brief Check equality (within tolerance)

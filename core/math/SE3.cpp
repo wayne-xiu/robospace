@@ -50,12 +50,12 @@ SE3 SE3::inverse() const {
     return SE3(R_T, p_inv);
 }
 
-Eigen::Matrix6d SE3::adjoint() const {
+Matrix6d SE3::adjoint() const {
     Eigen::Matrix3d R = g_.block<3, 3>(0, 0);
     Eigen::Vector3d p = g_.block<3, 1>(0, 3);
     Eigen::Matrix3d p_skew = skew(p);
 
-    Eigen::Matrix6d Ad;
+    Matrix6d Ad;
     Ad.block<3, 3>(0, 0) = R;
     Ad.block<3, 3>(0, 3) = Eigen::Matrix3d::Zero();
     Ad.block<3, 3>(3, 0) = p_skew * R;
@@ -149,9 +149,9 @@ se3 log_SE3(const SE3& g) {
 // Adjoint transformation
 
 se3 adjoint_SE3(const SE3& g, const se3& xi) {
-    Eigen::Matrix6d Ad = g.adjoint();
-    Eigen::Vector6d xi_vec = xi.vector();
-    Eigen::Vector6d result = Ad * xi_vec;
+    Matrix6d Ad = g.adjoint();
+    Vector6d xi_vec = xi.vector();
+    Vector6d result = Ad * xi_vec;
     return se3(result);
 }
 

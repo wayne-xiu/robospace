@@ -6,6 +6,10 @@
 namespace robospace {
 namespace math {
 
+// Define 6D vector type (not in Eigen by default)
+using Vector6d = Eigen::Matrix<double, 6, 1>;
+using Matrix6d = Eigen::Matrix<double, 6, 6>;
+
 // Forward declarations
 class SE3;
 class so3;
@@ -45,7 +49,7 @@ public:
      * @brief Construct from 6D vector [ω; v]
      * @param xi 6D twist vector
      */
-    explicit se3(const Eigen::Vector6d& xi);
+    explicit se3(const Vector6d& xi);
 
     /**
      * @brief Construct from 4×4 matrix representation
@@ -75,7 +79,7 @@ public:
     /**
      * @brief Get as 6D vector [ω; v]
      */
-    Eigen::Vector6d vector() const;
+    Vector6d vector() const;
 
     /**
      * @brief Get 4×4 matrix representation [ξ]

@@ -25,7 +25,7 @@ se3::se3() : omega_(Eigen::Vector3d::Zero()), v_(Eigen::Vector3d::Zero()) {}
 se3::se3(const Eigen::Vector3d& omega, const Eigen::Vector3d& v)
     : omega_(omega), v_(v) {}
 
-se3::se3(const Eigen::Vector6d& xi) {
+se3::se3(const Vector6d& xi) {
     omega_ = xi.head<3>();
     v_ = xi.tail<3>();
 }
@@ -39,8 +39,8 @@ se3 se3::Zero() {
     return se3();
 }
 
-Eigen::Vector6d se3::vector() const {
-    Eigen::Vector6d xi;
+Vector6d se3::vector() const {
+    Vector6d xi;
     xi << omega_, v_;
     return xi;
 }

@@ -1,0 +1,36 @@
+cmake_minimum_required(VERSION 3.18)
+
+# Fetch Catch2
+include(FetchContent)
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.5.1
+)
+FetchContent_MakeAvailable(Catch2)
+
+# Test executable (Catch2WithMain provides main())
+add_executable(robospace-tests
+    cpp/test_transform.cpp
+    cpp/test_rotation.cpp
+    cpp/test_se3.cpp
+    cpp/test_SE3.cpp
+    cpp/test_so3.cpp
+    cpp/test_SO3.cpp
+)
+
+target_link_libraries(robospace-tests PRIVATE
+    robospace-math
+    Catch2::Catch2WithMain
+)
+
+# Enable testing
+include(CTest)
+include(Catch)
+catch_discover_tests(robospace-tests)
+
+# Set C++ standard
+set_target_properties(robospace-tests PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)

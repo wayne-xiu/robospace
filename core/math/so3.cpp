@@ -23,30 +23,36 @@ Eigen::Matrix3d so3::bracket() const {
 
 so3 so3::lieBracket(const so3& other) const {
     // Lie bracket is cross product for so(3)
-    return so3(omega_.cross(other.omega_));
+    Eigen::Vector3d result = omega_.cross(other.omega_);
+    return so3(result);
 }
 
 so3 so3::operator+(const so3& other) const {
-    return so3(omega_ + other.omega_);
+    Eigen::Vector3d result = omega_ + other.omega_;
+    return so3(result);
 }
 
 so3 so3::operator-(const so3& other) const {
-    return so3(omega_ - other.omega_);
+    Eigen::Vector3d result = omega_ - other.omega_;
+    return so3(result);
 }
 
 so3 so3::operator*(double scalar) const {
-    return so3(omega_ * scalar);
+    Eigen::Vector3d result = omega_ * scalar;
+    return so3(result);
 }
 
 so3 so3::operator/(double scalar) const {
     if (std::abs(scalar) < 1e-10) {
         throw std::runtime_error("Division by near-zero scalar");
     }
-    return so3(omega_ / scalar);
+    Eigen::Vector3d result = omega_ / scalar;
+    return so3(result);
 }
 
 so3 so3::operator-() const {
-    return so3(-omega_);
+    Eigen::Vector3d result = -omega_;
+    return so3(result);
 }
 
 bool so3::isApprox(const so3& other, double tol) const {

@@ -98,7 +98,8 @@ Transform Transform::inverse() const {
 }
 
 Transform Transform::operator*(const Transform& other) const {
-    return Transform(T_ * other.T_);
+    Eigen::Matrix4d result = T_ * other.T_;
+    return Transform(result);
 }
 
 Eigen::Vector3d Transform::operator*(const Eigen::Vector3d& p) const {
