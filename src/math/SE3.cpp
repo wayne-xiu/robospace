@@ -98,13 +98,13 @@ SE3 exp_se3(const se3& xi) {
                        + (1.0 - std::cos(theta)) * omega_skew_sq;
 
     // Matrix M for translation:
-    // M = I*θ + (1-cos(θ))[ω] + (θ-sin(θ))[ω]²
+    // M = I*θ + (1-cos(θ))[ω̂] + (θ-sin(θ))[ω̂]²
     Eigen::Matrix3d M = Eigen::Matrix3d::Identity() * theta
                       + (1.0 - std::cos(theta)) * omega_skew
                       + (theta - std::sin(theta)) * omega_skew_sq;
 
-    // p = M * v / θ
-    Eigen::Vector3d p = M * v / theta;
+    // p = M * v
+    Eigen::Vector3d p = M * v;
 
     return SE3(R, p);
 }
