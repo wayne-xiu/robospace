@@ -86,7 +86,7 @@ public:
     bool has_screw_axis() const { return has_screw_; }
 
     // ========================================================================
-    // Axis Direction and Coupling (RoboDK "Joint Senses")
+    // Axis Direction and Coupling ("Joint Senses")
     // ========================================================================
 
     /**
@@ -105,7 +105,7 @@ public:
      * @param dir Direction multiplier: +1 (normal) or -1 (inverted)
      *
      * Some manufacturers (KUKA, Comau) use inverted joint axes.
-     * This corresponds to RoboDK "Joint Senses" values 1-6.
+     * This corresponds to "Joint Senses" values 1-6.
      */
     void set_axis_direction(int dir) {
         axis_direction_ = (dir >= 0) ? 1 : -1;
@@ -118,7 +118,7 @@ public:
      * @param coefficient Coupling coefficient
      *
      * Example: Fanuc J2-J3 coupling: joint[2].add_coupling(1, -1.0)
-     * This corresponds to RoboDK "Joint Senses" 7th value.
+     * This corresponds to "Joint Senses" 7th value.
      */
     void add_coupling(int from_joint_id, double coefficient) {
         if (std::abs(coefficient) > 1e-10) {  // Ignore near-zero coupling
@@ -219,7 +219,7 @@ private:
     Eigen::Vector<double, 6> screw_axis_;  // Modern Robotics screw axis
     bool has_screw_ = false;
 
-    // Axis direction and coupling (RoboDK "Joint Senses")
+    // Axis direction and coupling ("Joint Senses")
     int axis_direction_ = 1;  // ±1 for normal/inverted axis
     std::vector<CouplingTerm> coupling_terms_;  // Joint coupling relationships
 

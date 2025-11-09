@@ -7,7 +7,7 @@ using namespace robospace::model;
 using namespace robospace::math;
 
 // ============================================================================
-// Axis Direction Tests (RoboDK "Joint Senses" values 1-6)
+// Axis Direction Tests ("Joint Senses" values 1-6)
 // ============================================================================
 
 TEST_CASE("Joint: Set axis direction", "[model][joint][industrial]") {
@@ -43,7 +43,7 @@ TEST_CASE("Joint: Effective angle with axis direction", "[model][joint][industri
 }
 
 // ============================================================================
-// Joint Coupling Tests (RoboDK "Joint Senses" 7th value)
+// Joint Coupling Tests ("Joint Senses" 7th value)
 // ============================================================================
 
 TEST_CASE("Joint: Add coupling", "[model][joint][industrial]") {
@@ -159,7 +159,7 @@ TEST_CASE("DHParams: Transform with offset (prismatic)", "[model][dh][industrial
 }
 
 // ============================================================================
-// Real Robot Configurations (from user's RoboDK data)
+// Real Robot Configurations (manufacturer "Joint Senses" patterns)
 // ============================================================================
 
 TEST_CASE("Industrial Robots: Fanuc axis directions and coupling", "[model][robot][fanuc]") {
