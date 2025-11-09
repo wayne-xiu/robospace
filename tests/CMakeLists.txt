@@ -20,6 +20,7 @@ add_executable(robospace-tests
     cpp/test_model_basic.cpp
     cpp/test_industrial_robots.cpp
     cpp/test_frame.cpp
+    cpp/test_kinematic_tree.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE

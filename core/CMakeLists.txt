@@ -40,6 +40,7 @@ set(MODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/model/joint.cpp
     ${CMAKE_SOURCE_DIR}/src/model/link.cpp
     ${CMAKE_SOURCE_DIR}/src/model/frame.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/kinematic_tree.cpp
 )
 
 set(MODEL_HEADERS
@@ -48,6 +49,7 @@ set(MODEL_HEADERS
     ${CMAKE_SOURCE_DIR}/include/robospace/model/joint.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/link.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/frame.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/kinematic_tree.hpp
 )
 
 add_library(robospace-model ${MODEL_SOURCES} ${MODEL_HEADERS})
