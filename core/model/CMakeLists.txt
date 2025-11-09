@@ -1,8 +1,10 @@
 # Model library
 set(MODEL_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/model/entity.cpp
     ${CMAKE_SOURCE_DIR}/src/model/dh_params.cpp
     ${CMAKE_SOURCE_DIR}/src/model/joint.cpp
     ${CMAKE_SOURCE_DIR}/src/model/link.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/frame.cpp
 )
 
 add_library(robospace-model ${MODEL_SOURCES})

@@ -4,7 +4,7 @@ namespace robospace {
 namespace model {
 
 Link::Link(const std::string& name)
-    : name_(name) {
+    : Entity(name, Type::LINK) {
     // Default initialization is handled by member initializers
 }
 

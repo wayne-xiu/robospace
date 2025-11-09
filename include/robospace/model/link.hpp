@@ -1,5 +1,6 @@
 #pragma once
 
+#include <robospace/model/entity.hpp>
 #include <string>
 #include <Eigen/Dense>
 
@@ -12,10 +13,13 @@ namespace model {
  * A link represents a rigid body in the robot with physical properties
  * (mass, center of mass, inertia) and geometry (visual and collision meshes).
  *
+ * Inherits from Entity, so it can be part of the scene graph with pose
+ * relative to parent and ability to have children (e.g., Frames attached).
+ *
  * For Phase 1, geometry is just stored as file paths. Full geometry
  * representation will be added in later phases.
  */
-class Link {
+class Link : public Entity {
 public:
     /**
      * @brief Construct a link
@@ -23,12 +27,7 @@ public:
      */
     explicit Link(const std::string& name);
 
-    // ========================================================================
-    // Identification
-    // ========================================================================
-
-    const std::string& name() const { return name_; }
-    void set_name(const std::string& name) { name_ = name; }
+    // Identification inherited from Entity: name(), set_name(), type()
 
     // ========================================================================
     // Physical Properties (for dynamics)
@@ -92,9 +91,6 @@ public:
     bool has_collision() const { return !collision_mesh_.empty(); }
 
 private:
-    // Identification
-    std::string name_;
-
     // Physical properties
     double mass_ = 0.0;                              ///< Mass (kg)
     Eigen::Vector3d com_ = Eigen::Vector3d::Zero(); ///< Center of mass (m)
