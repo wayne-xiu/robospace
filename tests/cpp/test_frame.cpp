@@ -319,3 +319,103 @@ TEST_CASE("Use Case: Nested frames (gripper -> adapter -> tool)", "[model][frame
 
     REQUIRE_THAT(tcp_world(2), Catch::Matchers::WithinAbs(0.23, 1e-10));
 }
+
+// ============================================================================
+// Transform Computation Tests (compute_transform)
+// ============================================================================
+
+TEST_CASE("compute_transform: Same entity returns identity", "[model][transform]") {
+    Frame f("tcp");
+    SE3 T = compute_transform(&f, &f);
+    REQUIRE(T.isApprox(SE3::Identity()));
+}
+
+TEST_CASE("compute_transform: Parent to child", "[model][transform]") {
+    Link base("base");
+    Frame tcp("tcp", SE3::Translation(Eigen::Vector3d(0, 0, 0.5)));
+    tcp.set_parent(&base);
+
+    // Transform from TCP to base (expresses TCP in base coords)
+    SE3 T_base_tcp = compute_transform(&tcp, &base);
+
+    // Should be same as tcp's local pose
+    REQUIRE(T_base_tcp.isApprox(tcp.pose()));
+    REQUIRE_THAT(T_base_tcp.translation()(2), Catch::Matchers::WithinAbs(0.5, 1e-10));
+}
+
+TEST_CASE("compute_transform: Child to parent (inverse)", "[model][transform]") {
+    Link base("base");
+    Frame tcp("tcp", SE3::Translation(Eigen::Vector3d(0, 0, 0.5)));
+    tcp.set_parent(&base);
+
+    // Transform from base to TCP (inverse direction)
+    SE3 T_tcp_base = compute_transform(&base, &tcp);
+
+    // Should be inverse of tcp's pose
+    SE3 expected = tcp.pose().inverse();
+    REQUIRE(T_tcp_base.isApprox(expected));
+    REQUIRE_THAT(T_tcp_base.translation()(2), Catch::Matchers::WithinAbs(-0.5, 1e-10));
+}
+
+TEST_CASE("compute_transform: Siblings (TCP to camera)", "[model][transform]") {
+    Link flange("flange");
+
+    // TCP 10cm in +Z
+    Frame tcp("tcp", SE3::Translation(Eigen::Vector3d(0, 0, 0.1)));
+    tcp.set_parent(&flange);
+
+    // Camera 5cm in +X
+    Frame camera("camera", SE3::Translation(Eigen::Vector3d(0.05, 0, 0)));
+    camera.set_parent(&flange);
+
+    // Transform from TCP to camera coords
+    SE3 T_cam_tcp = compute_transform(&tcp, &camera);
+
+    // In camera frame, TCP should be at (-0.05, 0, 0.1)
+    Eigen::Vector3d tcp_in_cam = T_cam_tcp.translation();
+    REQUIRE_THAT(tcp_in_cam(0), Catch::Matchers::WithinAbs(-0.05, 1e-10));
+    REQUIRE_THAT(tcp_in_cam(1), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(tcp_in_cam(2), Catch::Matchers::WithinAbs(0.1, 1e-10));
+}
+
+TEST_CASE("compute_transform: Deep hierarchy (base -> TCP)", "[model][transform]") {
+    // World (origin) -> table -> robot_base -> tcp
+    Frame table("table", SE3::Translation(Eigen::Vector3d(1, 0, 0)));
+    Link robot_base("base");
+    robot_base.set_parent(&table);
+    robot_base.set_pose(SE3::Translation(Eigen::Vector3d(0, 0, 0.5)));
+
+    Frame tcp("tcp", SE3::Translation(Eigen::Vector3d(0, 0, 1.0)));
+    tcp.set_parent(&robot_base);
+
+    // Compute TCP in table coords
+    SE3 T_table_tcp = compute_transform(&tcp, &table);
+
+    // TCP in table frame coords: (0, 0, 1.5)
+    // Note: Table is at world origin internally, robot_base at +0.5Z, tcp at +1.0Z more
+    Eigen::Vector3d tcp_in_table = T_table_tcp.translation();
+    REQUIRE_THAT(tcp_in_table(0), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(tcp_in_table(1), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(tcp_in_table(2), Catch::Matchers::WithinAbs(1.5, 1e-10));
+}
+
+TEST_CASE("compute_transform: With rotations", "[model][transform]") {
+    Frame world("world");
+
+    // Base rotated 90° about Z
+    Frame base("base", SE3(SO3::RotZ(M_PI/2).matrix(), Eigen::Vector3d::Zero()));
+    base.set_parent(&world);
+
+    // TCP offset in +X of base frame
+    Frame tcp("tcp", SE3::Translation(Eigen::Vector3d(1, 0, 0)));
+    tcp.set_parent(&base);
+
+    // Compute TCP in world coords
+    SE3 T_world_tcp = compute_transform(&tcp, &world);
+
+    // In world coords, TCP should be at (0, 1, 0) due to 90° rotation
+    Eigen::Vector3d tcp_world = T_world_tcp.translation();
+    REQUIRE_THAT(tcp_world(0), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(tcp_world(1), Catch::Matchers::WithinAbs(1.0, 1e-10));
+    REQUIRE_THAT(tcp_world(2), Catch::Matchers::WithinAbs(0.0, 1e-10));
+}

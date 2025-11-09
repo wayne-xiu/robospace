@@ -151,5 +151,23 @@ protected:
     void remove_child(Entity* child);
 };
 
+// ============================================================================
+// Scene Graph Utilities
+// ============================================================================
+
+/**
+ * @brief Compute transform between two entities in the scene graph
+ * @param source Source entity (starting frame)
+ * @param target Target entity (destination frame)
+ * @return SE3 transform that expresses source frame in target frame coordinates
+ *
+ * Example: compute_transform(tcp, base) returns T_base_tcp
+ * This transform takes points in TCP frame and expresses them in base frame.
+ *
+ * Algorithm: Uses world poses to compute relative transform.
+ * Works for any two entities in the graph (same tree or different trees).
+ */
+math::SE3 compute_transform(const Entity* source, const Entity* target);
+
 } // namespace model
 } // namespace robospace

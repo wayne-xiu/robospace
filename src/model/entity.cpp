@@ -59,5 +59,21 @@ void Entity::remove_child(Entity* child) {
     }
 }
 
+math::SE3 compute_transform(const Entity* source, const Entity* target) {
+    // Special case: same entity
+    if (source == target) {
+        return math::SE3::Identity();
+    }
+
+    // Get world poses of both entities
+    math::SE3 T_world_source = source->pose_world();
+    math::SE3 T_world_target = target->pose_world();
+
+    // Compute relative transform:
+    // T_target_source = T_target_world * T_world_source
+    //                 = (T_world_target)^-1 * T_world_source
+    return T_world_target.inverse() * T_world_source;
+}
+
 } // namespace model
 } // namespace robospace
