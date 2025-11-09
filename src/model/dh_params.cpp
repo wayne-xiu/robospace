@@ -6,10 +6,13 @@ namespace robospace {
 namespace model {
 
 math::SE3 DHParams::transform(double q, bool is_prismatic) const {
+    // Apply offset to joint variable
+    double q_with_offset = q + offset;
+
     if (convention == DHConvention::STANDARD) {
-        return transform_standard(q, is_prismatic);
+        return transform_standard(q_with_offset, is_prismatic);
     } else {
-        return transform_modified(q, is_prismatic);
+        return transform_modified(q_with_offset, is_prismatic);
     }
 }
 

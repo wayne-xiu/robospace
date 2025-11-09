@@ -3,6 +3,7 @@
 #include <robospace/model/dh_params.hpp>
 #include <robospace/math/SE3.hpp>
 #include <string>
+#include <vector>
 #include <limits>
 
 namespace robospace {
@@ -85,6 +86,76 @@ public:
     bool has_screw_axis() const { return has_screw_; }
 
     // ========================================================================
+    // Axis Direction and Coupling (RoboDK "Joint Senses")
+    // ========================================================================
+
+    /**
+     * @brief Coupling term for joint coupling
+     *
+     * Represents contribution from another joint to this joint's effective angle.
+     * Example: Fanuc J2-J3 coupling where J3_effective = J3 + (-1) * J2
+     */
+    struct CouplingTerm {
+        int from_joint_id;      ///< Index of joint that affects this joint
+        double coefficient;     ///< Coupling coefficient (e.g., -1, 0.5, 1)
+    };
+
+    /**
+     * @brief Set axis direction (inversion)
+     * @param dir Direction multiplier: +1 (normal) or -1 (inverted)
+     *
+     * Some manufacturers (KUKA, Comau) use inverted joint axes.
+     * This corresponds to RoboDK "Joint Senses" values 1-6.
+     */
+    void set_axis_direction(int dir) {
+        axis_direction_ = (dir >= 0) ? 1 : -1;
+    }
+    int axis_direction() const { return axis_direction_; }
+
+    /**
+     * @brief Add joint coupling relationship
+     * @param from_joint_id Index of joint that affects this joint
+     * @param coefficient Coupling coefficient
+     *
+     * Example: Fanuc J2-J3 coupling: joint[2].add_coupling(1, -1.0)
+     * This corresponds to RoboDK "Joint Senses" 7th value.
+     */
+    void add_coupling(int from_joint_id, double coefficient) {
+        if (std::abs(coefficient) > 1e-10) {  // Ignore near-zero coupling
+            coupling_terms_.push_back({from_joint_id, coefficient});
+        }
+    }
+
+    void clear_coupling() { coupling_terms_.clear(); }
+    bool has_coupling() const { return !coupling_terms_.empty(); }
+    const std::vector<CouplingTerm>& coupling_terms() const {
+        return coupling_terms_;
+    }
+
+    /**
+     * @brief Get effective joint angle considering axis direction and coupling
+     * @param q_input Joint angle input (from controller or user)
+     * @param all_q Vector of all joint angles (for coupling computation)
+     * @return Effective joint angle after applying direction and coupling
+     *
+     * Formula: q_eff = axis_direction * (q_input + Σ(coef_i * q_i))
+     *
+     * Note: This does NOT include DH offset - that's handled separately.
+     */
+    double get_effective_angle(double q_input, const Eigen::VectorXd& all_q) const {
+        double q = axis_direction_ * q_input;
+
+        // Add coupling contributions
+        for (const auto& term : coupling_terms_) {
+            if (term.from_joint_id >= 0 && term.from_joint_id < all_q.size()) {
+                q += term.coefficient * all_q[term.from_joint_id];
+            }
+        }
+
+        return q;
+    }
+
+    // ========================================================================
     // Limits
     // ========================================================================
 
@@ -147,6 +218,10 @@ private:
 
     Eigen::Vector<double, 6> screw_axis_;  // Modern Robotics screw axis
     bool has_screw_ = false;
+
+    // Axis direction and coupling (RoboDK "Joint Senses")
+    int axis_direction_ = 1;  // ±1 for normal/inverted axis
+    std::vector<CouplingTerm> coupling_terms_;  // Joint coupling relationships
 
     // Limits
     double lower_limit_ = -std::numeric_limits<double>::infinity();

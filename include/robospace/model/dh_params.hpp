@@ -22,14 +22,19 @@ enum class DHConvention {
 /**
  * @brief Denavit-Hartenberg parameters for a robot joint
  *
- * Supports both Standard and Modified DH conventions. The four parameters are:
+ * Supports both Standard and Modified DH conventions. The four standard DH
+ * parameters plus an optional offset for calibration:
  * - α (alpha): Twist angle - rotation about x-axis (radians)
  * - a: Link length - translation along x-axis (meters)
  * - d: Link offset - translation along z-axis (meters)
- * - θ (theta): Joint angle - rotation about z-axis (radians)
+ * - θ (theta): Joint angle offset (radians)
+ * - offset: Additional constant offset added to q (radians or meters)
  *
  * For a revolute joint, θ is the variable (q)
  * For a prismatic joint, d is the variable (q)
+ *
+ * The offset parameter handles assembly tolerances and calibration offsets
+ * (typically 0-1.18° for industrial robots).
  */
 struct DHParams {
     double alpha;           ///< Twist angle (radians)
@@ -37,6 +42,7 @@ struct DHParams {
     double d;               ///< Link offset (meters)
     double theta;           ///< Joint angle offset (radians)
     DHConvention convention; ///< DH convention used
+    double offset;          ///< Additional calibration offset (radians or meters)
 
     /**
      * @brief Construct DH parameters
@@ -45,10 +51,12 @@ struct DHParams {
      * @param d Link offset (meters)
      * @param theta Joint angle offset (radians)
      * @param convention DH convention (default: MODIFIED)
+     * @param offset Additional calibration offset (default: 0.0)
      */
     DHParams(double alpha = 0.0, double a = 0.0, double d = 0.0,
-             double theta = 0.0, DHConvention convention = DHConvention::MODIFIED)
-        : alpha(alpha), a(a), d(d), theta(theta), convention(convention) {}
+             double theta = 0.0, DHConvention convention = DHConvention::MODIFIED,
+             double offset = 0.0)
+        : alpha(alpha), a(a), d(d), theta(theta), convention(convention), offset(offset) {}
 
     /**
      * @brief Compute transformation matrix for this DH parameter set

@@ -18,6 +18,7 @@ add_executable(robospace-tests
     cpp/test_so3.cpp
     cpp/test_SO3.cpp
     cpp/test_model_basic.cpp
+    cpp/test_industrial_robots.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE
