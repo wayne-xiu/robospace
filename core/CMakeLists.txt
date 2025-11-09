@@ -33,15 +33,44 @@ set_target_properties(robospace-math PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-# Model module (will be populated in Phase 1)
-# add_library(robospace-model ...)
+# Model module
+set(MODEL_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/model/dh_params.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/joint.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/link.cpp
+)
 
-# Kinematics module (will be populated in Phase 1)
+set(MODEL_HEADERS
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/dh_params.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/joint.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/link.hpp
+)
+
+add_library(robospace-model ${MODEL_SOURCES} ${MODEL_HEADERS})
+target_include_directories(robospace-model PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(robospace-model PUBLIC
+    Eigen3::Eigen
+    robospace-math
+)
+set_target_properties(robospace-model PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE ON
+)
+
+# Kinematics module (will be populated later in Phase 1)
 # add_library(robospace-kinematics ...)
 
 # Main robospace library (combines all modules)
-# For now, this is just an alias to robospace-math
-add_library(robospace ALIAS robospace-math)
+add_library(robospace-core INTERFACE)
+target_link_libraries(robospace-core INTERFACE
+    robospace-math
+    robospace-model
+)
+add_library(robospace ALIAS robospace-core)
 
 # When we add more modules, we'll create a combined library:
 # add_library(robospace INTERFACE)
@@ -52,7 +81,7 @@ add_library(robospace ALIAS robospace-math)
 # )
 
 # Installation
-install(TARGETS robospace-math
+install(TARGETS robospace-math robospace-model
     EXPORT robospaceTargets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib

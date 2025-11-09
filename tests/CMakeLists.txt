@@ -17,10 +17,12 @@ add_executable(robospace-tests
     cpp/test_SE3.cpp
     cpp/test_so3.cpp
     cpp/test_SO3.cpp
+    cpp/test_model_basic.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE
     robospace-math
+    robospace-model
     Catch2::Catch2WithMain
 )
 
