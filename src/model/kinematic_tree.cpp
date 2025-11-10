@@ -46,8 +46,11 @@ void KinematicTree::compute_forward_kinematics() {
     for (int i = 1; i < num_links(); ++i) {
         int joint_idx = i - 1;  // Joint connecting Link(i-1) to Link(i)
 
-        // Get joint transform at current configuration
-        math::SE3 joint_transform = joints_[joint_idx].transform(q_(joint_idx));
+        // Get effective joint angle (handles axis direction + coupling)
+        double q_effective = joints_[joint_idx].get_effective_angle(q_(joint_idx), q_);
+
+        // Get joint transform at effective configuration
+        math::SE3 joint_transform = joints_[joint_idx].transform(q_effective);
 
         // Compose with previous link pose
         link_poses_[i] = link_poses_[i - 1] * joint_transform;
