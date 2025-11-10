@@ -39,6 +39,8 @@ public:
     int num_links() const { return static_cast<int>(links_.size()); }
     const Joint& joint(int i) const { return joints_[i]; }
     const Link& link(int i) const { return links_[i]; }
+    Joint& joint(int i) { return joints_[i]; }
+    Link& link(int i) { return links_[i]; }
     bool is_valid() const { return links_.size() == joints_.size() + 1; }
 
     // Configuration

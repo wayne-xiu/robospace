@@ -36,8 +36,8 @@ public:
     int depth() const;
 
     // Pose
-    void set_pose(const math::SE3& pose) { pose_ = pose; }
-    const math::SE3& pose() const { return pose_; }
+    virtual void set_pose(const math::SE3& pose) { pose_ = pose; }
+    virtual math::SE3 pose() const { return pose_; }
     math::SE3 pose_world() const;
     Eigen::Vector3d translation() const { return pose_.translation(); }
     Eigen::Matrix3d rotation() const { return pose_.rotation(); }
