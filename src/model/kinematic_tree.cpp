@@ -26,47 +26,31 @@ void KinematicTree::compute_forward_kinematics() {
     if (!is_valid()) {
         throw std::runtime_error(
             "Invalid kinematic tree: " + std::to_string(num_links()) +
-            " links but " + std::to_string(num_joints()) + " joints. " +
-            "Expected N+1 links for N joints.");
+            " links but " + std::to_string(num_joints()) + " joints");
     }
 
     if (q_.size() != num_joints()) {
-        throw std::runtime_error(
-            "Configuration not set. Call set_configuration() first.");
+        throw std::runtime_error("Configuration not set");
     }
 
-    // Resize pose cache
     link_poses_.resize(num_links());
-
-    // Link 0 (base) is at identity
     link_poses_[0] = math::SE3::Identity();
 
-    // Forward kinematics: propagate through chain
-    // Link i pose = Link(i-1) pose * Joint(i) transform
     for (int i = 1; i < num_links(); ++i) {
-        int joint_idx = i - 1;  // Joint connecting Link(i-1) to Link(i)
-
-        // Get effective joint angle (handles axis direction + coupling)
-        double q_effective = joints_[joint_idx].get_effective_angle(q_(joint_idx), q_);
-
-        // Get joint transform at effective configuration
-        math::SE3 joint_transform = joints_[joint_idx].transform(q_effective);
-
-        // Compose with previous link pose
-        link_poses_[i] = link_poses_[i - 1] * joint_transform;
+        int joint_idx = i - 1;
+        double q_eff = joints_[joint_idx].get_effective_angle(q_(joint_idx), q_);
+        math::SE3 T_joint = joints_[joint_idx].transform(q_eff);
+        link_poses_[i] = link_poses_[i - 1] * T_joint;
     }
 }
 
 math::SE3 KinematicTree::link_pose(int link_id) const {
     if (link_id < 0 || link_id >= num_links()) {
-        throw std::out_of_range(
-            "Link ID " + std::to_string(link_id) + " out of range [0, " +
-            std::to_string(num_links() - 1) + "]");
+        throw std::out_of_range("Link ID " + std::to_string(link_id) + " out of range");
     }
 
     if (link_poses_.empty()) {
-        throw std::runtime_error(
-            "Forward kinematics not computed. Call compute_forward_kinematics() first.");
+        throw std::runtime_error("Forward kinematics not computed");
     }
 
     return link_poses_[link_id];

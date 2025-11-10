@@ -34,10 +34,10 @@
 
 ## Implementation Order (Step-by-Step)
 
-### Step 1: Core Data Structures (Week 1, Days 1-2)
+### Step 1: Core Data Structures (Week 1, Days 1-2) ✅ DONE
 **Goal:** Define basic building blocks
 
-**Files to create:**
+**Files created:**
 - `include/robospace/model/joint.hpp`
 - `include/robospace/model/link.hpp`
 - `include/robospace/model/dh_params.hpp`
@@ -45,18 +45,18 @@
 - `src/model/link.cpp`
 - `src/model/dh_params.cpp`
 
-**Tasks:**
-- [ ] Create `JointType` enum (REVOLUTE, PRISMATIC, CONTINUOUS, FIXED)
-- [ ] Create `DHConvention` enum (STANDARD, MODIFIED)
-- [ ] Implement `DHParams` struct with both conventions
-- [ ] Implement `Joint` class
-  - Name, type, parent/child link IDs
-  - DH parameters, screw axis, URDF origin+axis (triple representation)
+**Completed:**
+- ✅ Create `JointType` enum (REVOLUTE, PRISMATIC, CONTINUOUS, FIXED)
+- ✅ Create `DHConvention` enum (STANDARD, MODIFIED)
+- ✅ Implement `DHParams` struct with both conventions + offset
+- ✅ Implement `Joint` class
+  - Triple kinematic representation (DH, URDF origin+axis, screw)
   - Limits (position, velocity, effort)
-- [ ] Implement `Link` class
-  - Name, physical properties (mass, CoM, inertia)
-  - Geometry placeholders (visual, collision mesh paths)
-- [ ] Write tests for Joint and Link construction
+  - Industrial robot features: axis_direction, coupling_terms
+- ✅ Implement `Link` class (inherits Entity)
+  - Physical properties (mass, CoM, inertia)
+  - Geometry (visual/collision mesh paths)
+- ✅ 33 tests passing (basic + industrial robot features)
 
 **Deliverable:** Can create Joint and Link objects
 ```cpp
@@ -70,22 +70,27 @@ l1.set_mass(3.7);
 
 ---
 
-### Step 2: Frame Class (Week 1, Days 3-4)
-**Goal:** First-class Frame for coordinate systems
+### Step 2: Entity Refactor + Frame (Week 1, Days 3-4) ✅ DONE
+**Goal:** Flexible scene graph with first-class Frames
 
-**Files to create:**
+**Files created:**
+- `include/robospace/model/entity.hpp` (NEW - base class)
+- `src/model/entity.cpp`
 - `include/robospace/model/frame.hpp`
 - `src/model/frame.cpp`
 
-**Tasks:**
-- [ ] Implement `Frame` class
-  - Name, parent link ID, offset (SE3)
-  - Update offset (for calibration)
-  - Query methods
-- [ ] Write tests for Frame
-  - Construction
-  - Offset updates
-  - Relationship to parent link
+**Completed:**
+- ✅ Implement `Entity` base class (abstract)
+  - Scene graph management (parent, children, pose)
+  - `pose_world()` - recursive world pose computation
+  - Type system (FRAME, LINK, ROBOT, TOOL, TARGET)
+- ✅ Refactor `Link` to inherit from Entity
+- ✅ Implement `Frame` inherits Entity
+  - Flexible scene graph (Frame→Frame, Link→Frame supported)
+  - `update_pose()` for calibration updates
+- ✅ Add `compute_transform(source, target)` utility
+  - Compute transform between any entities in graph
+- ✅ 28 tests (construction, scene graph, world pose, use cases)
 
 **Deliverable:** Can create frames on links
 ```cpp
@@ -95,27 +100,32 @@ Frame camera("camera", flange_link_id, SE3::RotY(M_PI/2) * SE3::Translation(0.05
 
 ---
 
-### Step 3: KinematicTree (Week 1, Day 5 - Week 2, Day 1)
-**Goal:** Link-Joint topology management
+### Step 3: KinematicTree (Week 1, Day 5 - Week 2, Day 1) ✅ DONE
+**Goal:** Serial chain kinematics for industrial robots
 
-**Files to create:**
+**Files created:**
 - `include/robospace/model/kinematic_tree.hpp`
 - `src/model/kinematic_tree.cpp`
 
-**Tasks:**
-- [ ] Implement `KinematicTree` class
+**Completed:**
+- ✅ Implement `KinematicTree` class for serial chains
   - Store vectors of Links and Joints
-  - Parent-child relationship arrays
-  - Name-to-ID lookup maps
   - `add_link()`, `add_joint()` methods
-  - Tree traversal (get_joint_chain, parent/child queries)
-  - Root link identification
-  - DOF calculation (count non-fixed joints)
-- [ ] Write tests
-  - Simple 2-link chain
-  - Branching tree (multi-arm)
-  - Chain extraction
-  - Topology queries
+  - `set_configuration(q)` for joint angles
+  - `compute_forward_kinematics()` - O(n) chain traversal
+  - `link_pose(id)` - get link pose in base frame
+  - Industrial robot support (axis_direction, J2-J3 coupling)
+- ✅ Write 15 comprehensive tests
+  - Construction & validation (N+1 links for N joints)
+  - Configuration management
+  - FK for serial chains (zero config, elbow bend, both joints)
+  - Industrial robots (inverted axes, Fanuc-style coupling)
+  - Error handling (invalid trees, missing config)
+
+**Current Limitation:**
+⚠️ **Serial chains only** - no branching topology support
+- Supports: Base--J1--L1--J2--L2--J3--L3 (6-axis arms)
+- NOT supported: Multi-branch trees (dual-arm, humanoids)
 
 **Deliverable:** Can build and query kinematic trees
 ```cpp
@@ -448,6 +458,37 @@ test_data/                  # 🚧 This phase
 ⏸️ **Python Bindings** → After C++ API stable
 ⏸️ **Collision Detection** → Phase 3
 ⏸️ **Dynamics** → Phase 4
+
+---
+
+## Future Extensions (Beyond Phase 1)
+
+### Branching Kinematic Trees (Phase 2+)
+
+**Current Limitation:**
+- `KinematicTree` supports **serial chains only** (99% of industrial robots)
+- No multi-branch topology (dual-arm, humanoid, parallel robots)
+
+**Why Deferred:**
+1. 99% of target use cases are serial manipulators (Fanuc, KUKA, ABB, UR)
+2. Significant complexity: graph data structure, multi-end-effector FK, complex Jacobian
+3. Workaround exists: model dual-arm as two separate `Robot` instances
+
+**Future Implementation Path:**
+- Create `TreeKinematics` class alongside `KinematicTree`
+- Use graph data structure (adjacency list) instead of vectors
+- FK requires specifying target branch/end-effector
+- Examples: humanoids (2 arms + 2 legs), dual-arm workstations, mobile manipulators
+
+**Inspiration:**
+- Robotics Library (RL): `rl::mdl::Model` with graph support
+- Pinocchio: Full tree kinematics for humanoids
+- ROS KDL: Tree structure with segment chains
+
+**Design for Extensibility:**
+- Current `KinematicTree` is **internal to Robot class**
+- User API won't change when adding `TreeKinematics`
+- `Robot` can switch between `KinematicTree` (serial) and `TreeKinematics` (branching) internally
 
 ---
 
