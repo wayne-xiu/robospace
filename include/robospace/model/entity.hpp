@@ -20,7 +20,7 @@ class Entity {
 public:
     enum class Type { FRAME, LINK, ROBOT, TOOL, TARGET };
 
-    Entity(const std::string& name, Type type);
+    Entity(const std::string& name, Type type, Entity* parent = nullptr);
     virtual ~Entity() = default;
 
     // Identification

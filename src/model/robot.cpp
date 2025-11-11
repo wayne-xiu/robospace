@@ -8,8 +8,7 @@ Robot::Robot(const std::string& name)
     : Entity(name, Entity::Type::ROBOT) {}
 
 Robot::Robot(const std::string& name, Entity* parent)
-    : Entity(name, Entity::Type::ROBOT) {
-    set_parent(parent);
+    : Entity(name, Entity::Type::ROBOT, parent) {
 }
 
 // Pose overrides (TCP semantics)
