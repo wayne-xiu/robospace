@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+<!-- Simplified UR5 robot model for testing -->
+<robot name="ur5">
+
+  <!-- Base link -->
+  <link name="base_link">
+    <inertial>
+      <mass value="4.0"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.00443333156" ixy="0.0" ixz="0.0" iyy="0.00443333156" iyz="0.0" izz="0.0072"/>
+    </inertial>
+  </link>
+
+  <!-- Shoulder link -->
+  <link name="shoulder_link">
+    <inertial>
+      <mass value="3.7"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.010267495893" ixy="0.0" ixz="0.0" iyy="0.010267495893" iyz="0.0" izz="0.00666"/>
+    </inertial>
+  </link>
+
+  <!-- Upper arm link -->
+  <link name="upper_arm_link">
+    <inertial>
+      <mass value="8.393"/>
+      <origin xyz="0.0 0.0 0.28" rpy="0 0 0"/>
+      <inertia ixx="0.22689067591" ixy="0.0" ixz="0.0" iyy="0.22689067591" iyz="0.0" izz="0.0151074"/>
+    </inertial>
+  </link>
+
+  <!-- Forearm link -->
+  <link name="forearm_link">
+    <inertial>
+      <mass value="2.275"/>
+      <origin xyz="0.0 0.0 0.25" rpy="0 0 0"/>
+      <inertia ixx="0.049443313556" ixy="0.0" ixz="0.0" iyy="0.049443313556" iyz="0.0" izz="0.004095"/>
+    </inertial>
+  </link>
+
+  <!-- Wrist 1 link -->
+  <link name="wrist_1_link">
+    <inertial>
+      <mass value="1.219"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.111172755531" ixy="0.0" ixz="0.0" iyy="0.111172755531" iyz="0.0" izz="0.21942"/>
+    </inertial>
+  </link>
+
+  <!-- Wrist 2 link -->
+  <link name="wrist_2_link">
+    <inertial>
+      <mass value="1.219"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.111172755531" ixy="0.0" ixz="0.0" iyy="0.111172755531" iyz="0.0" izz="0.21942"/>
+    </inertial>
+  </link>
+
+  <!-- Wrist 3 link -->
+  <link name="wrist_3_link">
+    <inertial>
+      <mass value="0.1879"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <inertia ixx="0.0171364731454" ixy="0.0" ixz="0.0" iyy="0.0171364731454" iyz="0.0" izz="0.033822"/>
+    </inertial>
+  </link>
+
+  <!-- Shoulder pan joint -->
+  <joint name="shoulder_pan_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="shoulder_link"/>
+    <origin xyz="0.0 0.0 0.089159" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.28318530718" upper="6.28318530718" effort="150.0" velocity="3.15"/>
+  </joint>
+
+  <!-- Shoulder lift joint -->
+  <joint name="shoulder_lift_joint" type="revolute">
+    <parent link="shoulder_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0.0 0.13585 0.0" rpy="0.0 1.570796327 0.0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.28318530718" upper="6.28318530718" effort="150.0" velocity="3.15"/>
+  </joint>
+
+  <!-- Elbow joint -->
+  <joint name="elbow_joint" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0.0 -0.1197 0.425" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14159265359" upper="3.14159265359" effort="150.0" velocity="3.15"/>
+  </joint>
+
+  <!-- Wrist 1 joint -->
+  <joint name="wrist_1_joint" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_1_link"/>
+    <origin xyz="0.0 0.0 0.39225" rpy="0.0 1.570796327 0.0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.28318530718" upper="6.28318530718" effort="28.0" velocity="3.2"/>
+  </joint>
+
+  <!-- Wrist 2 joint -->
+  <joint name="wrist_2_joint" type="revolute">
+    <parent link="wrist_1_link"/>
+    <child link="wrist_2_link"/>
+    <origin xyz="0.0 0.09465 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.28318530718" upper="6.28318530718" effort="28.0" velocity="3.2"/>
+  </joint>
+
+  <!-- Wrist 3 joint -->
+  <joint name="wrist_3_joint" type="revolute">
+    <parent link="wrist_2_link"/>
+    <child link="wrist_3_link"/>
+    <origin xyz="0.0 0.0 0.09465" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-6.28318530718" upper="6.28318530718" effort="28.0" velocity="3.2"/>
+  </joint>
+
+</robot>

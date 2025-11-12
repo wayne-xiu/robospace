@@ -43,6 +43,7 @@ set(MODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/model/kinematic_tree.cpp
     ${CMAKE_SOURCE_DIR}/src/model/tool.cpp
     ${CMAKE_SOURCE_DIR}/src/model/robot.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/urdf_parser.cpp
 )
 
 set(MODEL_HEADERS
@@ -54,6 +55,7 @@ set(MODEL_HEADERS
     ${CMAKE_SOURCE_DIR}/include/robospace/model/kinematic_tree.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/tool.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/robot.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/urdf_parser.hpp
 )
 
 add_library(robospace-model ${MODEL_SOURCES} ${MODEL_HEADERS})
@@ -64,6 +66,7 @@ target_include_directories(robospace-model PUBLIC
 target_link_libraries(robospace-model PUBLIC
     Eigen3::Eigen
     robospace-math
+    tinyxml2
 )
 set_target_properties(robospace-model PROPERTIES
     CXX_STANDARD 17

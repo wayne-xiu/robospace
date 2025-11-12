@@ -25,8 +25,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 
-# Fetch Eigen3 (header-only library)
+# Fetch dependencies
 include(FetchContent)
+
+# Eigen3 (header-only library)
 FetchContent_Declare(
     Eigen3
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
@@ -37,6 +39,15 @@ set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(Eigen3)
+
+# TinyXML2 (for URDF parsing)
+FetchContent_Declare(
+    tinyxml2
+    GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+    GIT_TAG 9.0.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(tinyxml2)
 
 # Include directories
 include_directories(

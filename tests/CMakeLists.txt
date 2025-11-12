@@ -22,6 +22,7 @@ add_executable(robospace-tests
     cpp/test_frame.cpp
     cpp/test_kinematic_tree.cpp
     cpp/test_robot.cpp
+    cpp/test_urdf_parser.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE
@@ -34,6 +35,10 @@ target_link_libraries(robospace-tests PRIVATE
 include(CTest)
 include(Catch)
 catch_discover_tests(robospace-tests)
+
+# Copy test data files to build directory
+file(COPY ${CMAKE_SOURCE_DIR}/test_data
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Set C++ standard
 set_target_properties(robospace-tests PROPERTIES

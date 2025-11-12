@@ -1,4 +1,5 @@
 #include <robospace/model/robot.hpp>
+#include <robospace/model/urdf_parser.hpp>
 #include <stdexcept>
 
 namespace robospace {
@@ -217,6 +218,15 @@ void Robot::set_active_tool(int tool_id) {
 
 void Robot::set_active_tool(const std::string& tool_name) {
     active_tool_id_ = tool_id(tool_name);
+}
+
+// Factory methods
+Robot Robot::from_urdf(const std::string& urdf_path) {
+    return URDFParser::parse_file(urdf_path);
+}
+
+Robot Robot::from_urdf_string(const std::string& urdf_string) {
+    return URDFParser::parse_string(urdf_string);
 }
 
 } // namespace model
