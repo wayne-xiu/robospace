@@ -5,6 +5,8 @@ set(MODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/model/joint.cpp
     ${CMAKE_SOURCE_DIR}/src/model/link.cpp
     ${CMAKE_SOURCE_DIR}/src/model/frame.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/kinematic_tree.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/robot.cpp
 )
 
 add_library(robospace-model ${MODEL_SOURCES})

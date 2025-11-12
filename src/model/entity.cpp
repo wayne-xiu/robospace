@@ -4,8 +4,11 @@
 namespace robospace {
 namespace model {
 
-Entity::Entity(const std::string& name, Type type)
+Entity::Entity(const std::string& name, Type type, Entity* parent)
     : name_(name), type_(type), pose_(math::SE3::Identity()) {
+    if (parent != nullptr) {
+        set_parent(parent);
+    }
 }
 
 void Entity::set_parent(Entity* new_parent) {
