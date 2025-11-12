@@ -38,7 +38,7 @@ TEST_CASE("Robot: Construction", "[robot]") {
     REQUIRE(robot.num_links() == 0);
     REQUIRE(robot.num_joints() == 0);
     REQUIRE(robot.num_tools() == 0);
-    REQUIRE(robot.num_positions() == 0);
+    REQUIRE(robot.dof() == 0);
     REQUIRE_FALSE(robot.is_valid());
     REQUIRE_FALSE(robot.has_active_tool());
 }
@@ -192,13 +192,13 @@ TEST_CASE("Robot: Tool name lookups", "[robot]") {
     REQUIRE_FALSE(robot.has_tool("nonexistent"));
 }
 
-TEST_CASE("Robot: Num positions", "[robot]") {
+TEST_CASE("Robot: DOF (degrees of freedom)", "[robot]") {
     Robot robot = create_2dof_robot();
 
-    REQUIRE(robot.num_positions() == 2);
+    REQUIRE(robot.dof() == 2);
 }
 
-TEST_CASE("Robot: Num positions with fixed joint", "[robot]") {
+TEST_CASE("Robot: DOF (degrees of freedom) with fixed joint", "[robot]") {
     Robot robot("test_robot");
 
     robot.add_link(Link("base"));
@@ -211,7 +211,7 @@ TEST_CASE("Robot: Num positions with fixed joint", "[robot]") {
     Joint joint2("joint2", JointType::FIXED, 1, 2);
     robot.add_joint(joint2);
 
-    REQUIRE(robot.num_positions() == 1);
+    REQUIRE(robot.dof() == 1);
 }
 
 TEST_CASE("Robot: Base link accessors", "[robot]") {

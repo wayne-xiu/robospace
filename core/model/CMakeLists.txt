@@ -6,7 +6,9 @@ set(MODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/model/link.cpp
     ${CMAKE_SOURCE_DIR}/src/model/frame.cpp
     ${CMAKE_SOURCE_DIR}/src/model/kinematic_tree.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/tool.cpp
     ${CMAKE_SOURCE_DIR}/src/model/robot.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/urdf_parser.cpp
 )
 
 add_library(robospace-model ${MODEL_SOURCES})
@@ -21,6 +23,7 @@ target_link_libraries(robospace-model
     PUBLIC
         Eigen3::Eigen
         robospace-math
+        tinyxml2
 )
 
 target_compile_features(robospace-model PUBLIC cxx_std_17)

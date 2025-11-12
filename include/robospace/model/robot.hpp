@@ -35,7 +35,27 @@ public:
     explicit Robot(const std::string& name);
     Robot(const std::string& name, Entity* parent);
 
-    // Building the robot
+    // === FACTORY METHODS ===
+
+    /**
+     * @brief Load robot from URDF file
+     * @param urdf_path Path to URDF file
+     * @return Robot object constructed from URDF
+     * @throws std::runtime_error if file not found or parsing fails
+     */
+    static Robot from_urdf(const std::string& urdf_path);
+
+    /**
+     * @brief Load robot from URDF string
+     * @param urdf_string URDF XML content as string
+     * @return Robot object constructed from URDF
+     * @throws std::runtime_error if parsing fails
+     */
+    static Robot from_urdf_string(const std::string& urdf_string);
+
+    // === BUILDING (Internal use) ===
+
+    // TODO: Make protected in Phase 2, add friend class URDFParser
     void add_link(const Link& link);
     void add_joint(const Joint& joint);
 
@@ -77,7 +97,7 @@ public:
     // Counts
     int num_links() const { return tree_.num_links(); }
     int num_joints() const { return tree_.num_joints(); }
-    int num_positions() const;
+    int dof() const;  // Degrees of freedom (number of actuated joints)
 
     // Base frame (physical base relative to base_ref)
     void set_base_frame(const math::SE3& frame);
