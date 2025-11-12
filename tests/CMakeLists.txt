@@ -37,7 +37,7 @@ include(Catch)
 catch_discover_tests(robospace-tests)
 
 # Copy test data files to build directory
-file(COPY ${CMAKE_SOURCE_DIR}/test_data
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/test_data
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Set C++ standard
