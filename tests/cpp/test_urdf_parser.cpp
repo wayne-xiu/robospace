@@ -23,7 +23,7 @@ TEST_CASE("URDF Parser: Load simple 2R robot", "[urdf][parser]") {
     }
 
     SECTION("DOF (positions)") {
-        REQUIRE(robot.num_positions() == 2);  // 2 revolute joints
+        REQUIRE(robot.dof() == 2);  // 2 revolute joints
     }
 
     SECTION("Link names") {
@@ -135,7 +135,7 @@ TEST_CASE("URDF Parser: Load UR5 robot", "[urdf][parser][ur5]") {
     }
 
     SECTION("DOF (positions)") {
-        REQUIRE(robot.num_positions() == 6);  // 6 revolute joints
+        REQUIRE(robot.dof() == 6);  // 6 revolute joints
     }
 
     SECTION("All links present") {

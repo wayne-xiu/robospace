@@ -156,7 +156,7 @@ auto chain = tree.get_joint_chain(base_id, link1_id);  // Returns [joint1_id]
   - Name-to-ID lookup for links, joints, tools
   - `add_link()`, `add_joint()`, `add_tool()` methods
   - Accessors: `link()`, `joint()`, `tool()` by name/ID (const & non-const)
-  - Counts: `num_links()`, `num_joints()`, `num_tools()`, `num_positions()`
+  - Counts: `num_links()`, `num_joints()`, `num_tools()`, `dof()`
   - Special accessors: `base_link()`, `flange_link()`, `base_frame()`
   - Tool management: `active_tool()`, `set_active_tool()`
   - Validation: `is_valid()` delegate to kinematic tree
@@ -233,7 +233,7 @@ Robot ur5 = Robot::from_urdf("models/ur5.urdf");
 
 // Query robot properties
 std::cout << "Robot: " << ur5.name() << std::endl;
-std::cout << "DOF: " << ur5.num_positions() << std::endl;
+std::cout << "DOF: " << ur5.dof() << std::endl;
 std::cout << "Joints: " << ur5.num_joints() << std::endl;
 
 // Access robot components
@@ -250,7 +250,7 @@ const Link& base = ur5.link("base_link");
 ```cpp
 Robot robot = Robot::from_urdf("models/ur5.urdf");
 std::cout << "Loaded " << robot.name() << " with "
-          << robot.num_positions() << " DOF" << std::endl;
+          << robot.dof() << " DOF" << std::endl;
 ```
 
 ---

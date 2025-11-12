@@ -97,7 +97,7 @@ public:
     // Counts
     int num_links() const { return tree_.num_links(); }
     int num_joints() const { return tree_.num_joints(); }
-    int num_positions() const;
+    int dof() const;  // Degrees of freedom (number of actuated joints)
 
     // Base frame (physical base relative to base_ref)
     void set_base_frame(const math::SE3& frame);

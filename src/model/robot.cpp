@@ -179,7 +179,7 @@ bool Robot::has_joint(const std::string& name) const {
 }
 
 // Counts
-int Robot::num_positions() const {
+int Robot::dof() const {
     int count = 0;
     for (int i = 0; i < num_joints(); ++i) {
         if (!joint(i).is_fixed()) {

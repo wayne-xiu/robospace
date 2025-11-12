@@ -87,7 +87,7 @@ We have successfully completed **Steps 1-5** of Phase 1, establishing a solid fo
 **Example usage:**
 ```cpp
 Robot ur5 = Robot::from_urdf("models/ur5.urdf");
-std::cout << "DOF: " << ur5.num_positions() << std::endl;
+std::cout << "DOF: " << ur5.dof() << std::endl;
 ```
 
 ---
