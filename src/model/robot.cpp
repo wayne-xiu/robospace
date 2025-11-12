@@ -12,30 +12,20 @@ Robot::Robot(const std::string& name, Entity* parent)
     : Entity(name, Entity::Type::ROBOT, parent) {
 }
 
-// Pose overrides (TCP semantics)
 math::SE3 Robot::pose() const {
-    // Compute TCP pose via FK: FK_origin * base_frame * FK(q) * flange * active_tool
     if (num_links() == 0) {
-        return Entity::pose();  // No links, return FK origin
+        return Entity::pose();
     }
 
-    // Compute FK to get flange pose
-    const_cast<KinematicTree&>(tree_).compute_forward_kinematics();
-    math::SE3 flange_pose = base_frame_ * tree_.link_pose(flange_link_id());
-
-    // Add active tool TCP if present
-    if (has_active_tool()) {
-        flange_pose = flange_pose * active_tool().tcp_pose();
+    if (tree_.configuration().size() == 0) {
+        throw std::runtime_error("Configuration not set. Use kinematic_tree().set_configuration() first.");
     }
 
-    // Transform to world coordinates
-    return Entity::pose() * flange_pose;
+    return Entity::pose() * get_tcp_pose(tree_.configuration());
 }
 
 void Robot::set_pose(const math::SE3& tcp_target) {
-    (void)tcp_target;  // Suppress unused parameter warning
-    // TODO: Implement IK to compute joint configuration for tcp_target
-    // For now, throw not implemented
+    (void)tcp_target;
     throw std::runtime_error("IK not yet implemented. Use kinematic_tree().set_configuration() to set joint angles directly.");
 }
 
@@ -218,6 +208,49 @@ void Robot::set_active_tool(int tool_id) {
 
 void Robot::set_active_tool(const std::string& tool_name) {
     active_tool_id_ = tool_id(tool_name);
+}
+
+// === FORWARD KINEMATICS ===
+
+math::SE3 Robot::compute_fk(const Eigen::VectorXd& q, const std::string& link_name) const {
+    int id = link_id(link_name);
+    math::SE3 link_pose = tree_.compute_link_pose(q, id);
+    return base_frame_ * link_pose;
+}
+
+math::SE3 Robot::get_tcp_pose(const Eigen::VectorXd& q) const {
+    if (num_links() == 0) {
+        return base_frame_;  // No links, return base frame
+    }
+
+    // Compute FK to flange
+    math::SE3 flange_pose = tree_.compute_link_pose(q, flange_link_id());
+    math::SE3 tcp_pose = base_frame_ * flange_pose;
+
+    // Add active tool TCP if present
+    if (has_active_tool()) {
+        tcp_pose = tcp_pose * active_tool().tcp_pose();
+    }
+
+    return tcp_pose;
+}
+
+std::vector<math::SE3> Robot::compute_all_link_poses(const Eigen::VectorXd& q) const {
+    std::vector<math::SE3> poses = tree_.compute_forward_kinematics(q);
+
+    // Transform all poses by base_frame_
+    for (auto& pose : poses) {
+        pose = base_frame_ * pose;
+    }
+
+    return poses;
+}
+
+math::SE3 Robot::get_current_tcp_pose() const {
+    if (tree_.configuration().size() == 0) {
+        throw std::runtime_error("Configuration not set. Use kinematic_tree().set_configuration() first.");
+    }
+    return get_tcp_pose(tree_.configuration());
 }
 
 // Factory methods

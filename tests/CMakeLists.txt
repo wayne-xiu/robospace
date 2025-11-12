@@ -23,6 +23,7 @@ add_executable(robospace-tests
     cpp/test_kinematic_tree.cpp
     cpp/test_robot.cpp
     cpp/test_urdf_parser.cpp
+    cpp/test_forward_kinematics.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE

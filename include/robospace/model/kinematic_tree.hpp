@@ -47,9 +47,13 @@ public:
     void set_configuration(const Eigen::VectorXd& q);
     const Eigen::VectorXd& configuration() const { return q_; }
 
-    // Forward kinematics
+    // Forward kinematics (stateful - uses stored configuration)
     void compute_forward_kinematics();
     math::SE3 link_pose(int link_id) const;
+
+    // Forward kinematics (stateless - takes configuration as parameter)
+    std::vector<math::SE3> compute_forward_kinematics(const Eigen::VectorXd& q) const;
+    math::SE3 compute_link_pose(const Eigen::VectorXd& q, int link_id) const;
 
 private:
     std::vector<Link> links_;

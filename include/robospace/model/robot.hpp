@@ -125,6 +125,36 @@ public:
     const KinematicTree& kinematic_tree() const { return tree_; }
     KinematicTree& kinematic_tree() { return tree_; }
 
+    // === FORWARD KINEMATICS ===
+
+    /**
+     * @brief Compute forward kinematics to a specific link
+     * @param q Joint configuration vector (size must equal num_joints())
+     * @param link_name Name of target link
+     * @return SE3 pose of the link in robot base frame (includes base_frame_)
+     */
+    math::SE3 compute_fk(const Eigen::VectorXd& q, const std::string& link_name) const;
+
+    /**
+     * @brief Compute forward kinematics to TCP (Tool Center Point)
+     * @param q Joint configuration vector
+     * @return SE3 pose of TCP in robot base frame (includes active tool if set)
+     */
+    math::SE3 get_tcp_pose(const Eigen::VectorXd& q) const;
+
+    /**
+     * @brief Compute forward kinematics for all links
+     * @param q Joint configuration vector
+     * @return Vector of SE3 poses for all links (indexed by link ID, includes base_frame_)
+     */
+    std::vector<math::SE3> compute_all_link_poses(const Eigen::VectorXd& q) const;
+
+    /**
+     * @brief Get current TCP pose using stored configuration
+     * @return SE3 pose of TCP in world frame (Entity::pose() * base_frame_ * FK * tool)
+     */
+    math::SE3 get_current_tcp_pose() const;
+
     // Validation
     bool is_valid() const { return tree_.is_valid(); }
 
