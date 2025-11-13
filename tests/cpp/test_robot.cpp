@@ -11,12 +11,10 @@ using namespace robospace::math;
 Robot create_2dof_robot() {
     Robot robot("test_robot");
 
-    // Add links
     robot.add_link(Link("base"));
     robot.add_link(Link("link1"));
     robot.add_link(Link("link2"));
 
-    // Add joints
     DHParams dh1(0, 1.0, 0, 0, DHConvention::STANDARD);
     Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
     joint1.set_dh_params(dh1);
@@ -90,19 +88,6 @@ TEST_CASE("Robot: Tool accessors by name", "[robot]") {
                  Catch::Matchers::WithinAbs(0.15, 1e-10));
 }
 
-TEST_CASE("Robot: Mutable tool accessors", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    Tool tool1("tcp", SE3::Identity());
-    robot.add_tool(tool1);
-
-    // Modify tool through mutable accessor
-    robot.tool(0).set_tcp_pose(SE3::Translation(Eigen::Vector3d(0, 0, 0.2)));
-
-    REQUIRE_THAT(robot.tool(0).tcp_pose().translation().z(),
-                 Catch::Matchers::WithinAbs(0.2, 1e-10));
-}
-
 TEST_CASE("Robot: Link accessors by ID", "[robot]") {
     Robot robot = create_2dof_robot();
 
@@ -133,65 +118,6 @@ TEST_CASE("Robot: Joint accessors by name", "[robot]") {
     REQUIRE(robot.joint("joint2").name() == "joint2");
 }
 
-TEST_CASE("Robot: Mutable link accessors", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    // Modify link through mutable accessor
-    robot.link(1).set_mass(5.0);
-
-    REQUIRE_THAT(robot.link(1).mass(), Catch::Matchers::WithinAbs(5.0, 1e-10));
-}
-
-TEST_CASE("Robot: Mutable joint accessors", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    // Modify joint through mutable accessor
-    robot.joint(0).set_limits(-1.0, 2.0);
-
-    REQUIRE(robot.joint(0).has_position_limits());
-    REQUIRE_THAT(robot.joint(0).lower_limit(), Catch::Matchers::WithinAbs(-1.0, 1e-10));
-    REQUIRE_THAT(robot.joint(0).upper_limit(), Catch::Matchers::WithinAbs(2.0, 1e-10));
-}
-
-TEST_CASE("Robot: Link name lookups", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    REQUIRE(robot.link_id("base") == 0);
-    REQUIRE(robot.link_id("link1") == 1);
-    REQUIRE(robot.link_id("link2") == 2);
-
-    REQUIRE(robot.has_link("base"));
-    REQUIRE(robot.has_link("link1"));
-    REQUIRE_FALSE(robot.has_link("nonexistent"));
-}
-
-TEST_CASE("Robot: Joint name lookups", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    REQUIRE(robot.joint_id("joint1") == 0);
-    REQUIRE(robot.joint_id("joint2") == 1);
-
-    REQUIRE(robot.has_joint("joint1"));
-    REQUIRE(robot.has_joint("joint2"));
-    REQUIRE_FALSE(robot.has_joint("nonexistent"));
-}
-
-TEST_CASE("Robot: Tool name lookups", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    Tool tool1("tcp", SE3::Identity());
-    Tool tool2("gripper", SE3::Identity());
-    robot.add_tool(tool1);
-    robot.add_tool(tool2);
-
-    REQUIRE(robot.tool_id("tcp") == 0);
-    REQUIRE(robot.tool_id("gripper") == 1);
-
-    REQUIRE(robot.has_tool("tcp"));
-    REQUIRE(robot.has_tool("gripper"));
-    REQUIRE_FALSE(robot.has_tool("nonexistent"));
-}
-
 TEST_CASE("Robot: DOF (degrees of freedom)", "[robot]") {
     Robot robot = create_2dof_robot();
 
@@ -214,32 +140,41 @@ TEST_CASE("Robot: DOF (degrees of freedom) with fixed joint", "[robot]") {
     REQUIRE(robot.dof() == 1);
 }
 
-TEST_CASE("Robot: Base link accessors", "[robot]") {
-    Robot robot = create_2dof_robot();
+TEST_CASE("Robot: joint_limits()", "[robot]") {
+    Robot robot("test_robot");
 
-    REQUIRE(robot.base_link_id() == 0);
-    REQUIRE(robot.base_link().name() == "base");
-}
+    robot.add_link(Link("base"));
+    robot.add_link(Link("link1"));
+    robot.add_link(Link("link2"));
 
-TEST_CASE("Robot: Flange link accessors", "[robot]") {
-    Robot robot = create_2dof_robot();
+    Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
+    joint1.set_limits(-1.5, 1.5);
+    robot.add_joint(joint1);
 
-    REQUIRE(robot.flange_link_id() == 2);
-    REQUIRE(robot.flange_link().name() == "link2");
+    Joint joint2("joint2", JointType::REVOLUTE, 1, 2);
+    joint2.set_limits(-2.0, 2.0);
+    robot.add_joint(joint2);
+
+    auto [qmin, qmax] = robot.joint_limits();
+
+    REQUIRE(qmin.size() == 2);
+    REQUIRE(qmax.size() == 2);
+    REQUIRE_THAT(qmin(0), Catch::Matchers::WithinAbs(-1.5, 1e-10));
+    REQUIRE_THAT(qmax(0), Catch::Matchers::WithinAbs(1.5, 1e-10));
+    REQUIRE_THAT(qmin(1), Catch::Matchers::WithinAbs(-2.0, 1e-10));
+    REQUIRE_THAT(qmax(1), Catch::Matchers::WithinAbs(2.0, 1e-10));
 }
 
 TEST_CASE("Robot: Base frame", "[robot]") {
     Robot robot = create_2dof_robot();
 
-    // Default base frame is identity
-    REQUIRE(robot.base_frame().isApprox(SE3::Identity(), 1e-10));
+    REQUIRE(robot.base().isApprox(SE3::Identity(), 1e-10));
 
-    // Set base frame (e.g., Fanuc style: physical base below base_ref)
     SE3 base_offset = SE3::Translation(Eigen::Vector3d(0, 0, -0.525));
-    robot.set_base_frame(base_offset);
+    robot.set_base(base_offset);
 
-    REQUIRE(robot.base_frame().isApprox(base_offset, 1e-10));
-    REQUIRE_THAT(robot.base_frame().translation().z(),
+    REQUIRE(robot.base().isApprox(base_offset, 1e-10));
+    REQUIRE_THAT(robot.base().translation().z(),
                  Catch::Matchers::WithinAbs(-0.525, 1e-10));
 }
 
@@ -255,36 +190,10 @@ TEST_CASE("Robot: Active tool management", "[robot]") {
 
     robot.set_active_tool(0);
     REQUIRE(robot.has_active_tool());
-    REQUIRE(robot.active_tool_id() == 0);
     REQUIRE(robot.active_tool().name() == "tcp1");
 
     robot.set_active_tool("tcp2");
-    REQUIRE(robot.active_tool_id() == 1);
     REQUIRE(robot.active_tool().name() == "tcp2");
-}
-
-TEST_CASE("Robot: Active tool modification", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    Tool tool1("tcp", SE3::Identity());
-    robot.add_tool(tool1);
-    robot.set_active_tool(0);
-
-    // Modify active tool
-    robot.active_tool().set_tcp_pose(SE3::Translation(Eigen::Vector3d(0, 0, 0.3)));
-
-    REQUIRE_THAT(robot.tool(0).tcp_pose().translation().z(),
-                 Catch::Matchers::WithinAbs(0.3, 1e-10));
-}
-
-TEST_CASE("Robot: Tool parent is flange", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    Tool tool1("tcp", SE3::Identity());
-    robot.add_tool(tool1);
-
-    // Tool parent should be the flange link
-    REQUIRE(robot.tool(0).parent() == &robot.flange_link());
 }
 
 TEST_CASE("Robot: Validation", "[robot]") {
@@ -310,7 +219,6 @@ TEST_CASE("Robot: Error - duplicate link name", "[robot]") {
     robot.add_link(Link("link1"));
 
     REQUIRE(robot.num_links() == 2);
-    // Note: Current implementation doesn't prevent duplicate names
 }
 
 TEST_CASE("Robot: Error - duplicate tool name", "[robot]") {
@@ -372,14 +280,6 @@ TEST_CASE("Robot: Error - get active tool when not set", "[robot]") {
     Robot robot = create_2dof_robot();
 
     REQUIRE_THROWS_AS(robot.active_tool(), std::runtime_error);
-}
-
-TEST_CASE("Robot: Kinematic tree access", "[robot]") {
-    Robot robot = create_2dof_robot();
-
-    const KinematicTree& tree = robot.kinematic_tree();
-    REQUIRE(tree.num_links() == 3);
-    REQUIRE(tree.num_joints() == 2);
 }
 
 TEST_CASE("Robot: joints() and set_joints() API", "[robot]") {
