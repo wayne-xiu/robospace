@@ -75,7 +75,7 @@ configure-dev:
 	cd $(BUILD_DIR) && cmake .. \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DBUILD_TESTS=ON \
-		-DBUILD_PYTHON=OFF \
+		-DBUILD_PYTHON=ON \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@echo "✓ Configuration complete (Dev mode)"
 
@@ -117,14 +117,13 @@ test-cpp: build
 	cd $(BUILD_DIR) && ctest --output-on-failure
 	@echo "✓ C++ tests passed"
 
-test-python:
+test-python: build
 	@echo "Running Python tests..."
-	@if [ -d tests/python ] && [ -f tests/python/test_*.py ]; then \
-		pytest tests/python -v; \
+	@if [ -d tests/python ]; then \
+		cd tests/python && python3 test_basic.py; \
 	else \
-		echo "⚠ Python tests not yet implemented"; \
+		echo "⚠ Python tests not found"; \
 	fi
-	@echo "✓ Python tests complete"
 
 #
 # Installation
