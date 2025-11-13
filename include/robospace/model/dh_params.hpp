@@ -16,12 +16,7 @@ enum class DHConvention {
     MODIFIED
 };
 
-/**
- * @brief Denavit-Hartenberg parameters for joint kinematics
- *
- * Standard DH parameters (α, a, d, θ) plus optional calibration offset.
- * Supports both Standard and Modified conventions.
- */
+// DH parameters: alpha/theta/offset in radians, a/d in meters
 struct DHParams {
     double alpha;
     double a;

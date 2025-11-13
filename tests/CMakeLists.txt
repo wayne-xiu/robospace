@@ -24,6 +24,7 @@ add_executable(robospace-tests
     cpp/test_robot.cpp
     cpp/test_urdf_parser.cpp
     cpp/test_forward_kinematics.cpp
+    cpp/test_units.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE

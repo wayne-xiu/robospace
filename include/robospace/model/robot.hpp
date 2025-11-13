@@ -13,6 +13,8 @@
 namespace robospace {
 namespace model {
 
+// Robot model with kinematic chain
+// UNITS: SI (meters, radians). Use robospace::units for mm/deg conversions.
 class Robot : public Entity {
 public:
     // Construction
@@ -38,13 +40,13 @@ public:
     void set_home(const Eigen::VectorXd& q);
     bool has_home() const { return home_position_.size() > 0; }
 
-    // Forward kinematics (stateless - explicit q)
+    // Forward kinematics (stateless)
     math::SE3 fk(const Eigen::VectorXd& q) const;
     math::SE3 fk(const Eigen::VectorXd& q, const std::string& link_name) const;
     math::SE3 fk(const Eigen::VectorXd& q, int link_id) const;
     std::vector<math::SE3> fk_all(const Eigen::VectorXd& q) const;
 
-    // Forward kinematics (stateful - uses stored q)
+    // Forward kinematics (stateful)
     math::SE3 fk() const;
     math::SE3 fk(const std::string& link_name) const;
     math::SE3 fk(int link_id) const;
