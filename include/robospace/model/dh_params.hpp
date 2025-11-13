@@ -21,14 +21,18 @@ enum class DHConvention {
  *
  * Standard DH parameters (α, a, d, θ) plus optional calibration offset.
  * Supports both Standard and Modified conventions.
+ *
+ * UNITS:
+ *   - alpha, theta, offset: radians
+ *   - a, d: meters
  */
 struct DHParams {
-    double alpha;
-    double a;
-    double d;
-    double theta;
+    double alpha;   // radians
+    double a;       // meters
+    double d;       // meters
+    double theta;   // radians
     DHConvention convention;
-    double offset;
+    double offset;  // radians or meters (prismatic)
 
     DHParams(double alpha = 0.0, double a = 0.0, double d = 0.0,
              double theta = 0.0, DHConvention convention = DHConvention::MODIFIED,
