@@ -19,12 +19,11 @@ void bind_math(py::module_& m) {
         .value("XYX", EulerConvention::XYX)
         .export_values();
 
-    // SE3 - Special Euclidean Group in 3D
+    // SE3 - Use shared_ptr for Eigen alignment
     py::class_<SE3>(m, "SE3", "SE(3) rigid transformation")
-        .def(py::init<>(), "Identity transformation")
-        .def(py::init<const Eigen::Matrix3d&, const Eigen::Vector3d&>(),
-             py::arg("rotation"), py::arg("translation"))
+        .def(py::init<>())
         .def_static("Identity", &SE3::Identity)
+        .def_static("FromMatrix", [](const Eigen::Matrix4d& mat) { return SE3(mat); }, py::arg("matrix"), "Construct SE3 from 4x4 matrix")
         .def("matrix", &SE3::matrix)
         .def("rotation", &SE3::rotation)
         .def("translation", &SE3::translation)
@@ -33,10 +32,9 @@ void bind_math(py::module_& m) {
             return self * other;
         });
 
-    // SO3 - Special Orthogonal Group in 3D
+    // SO3
     py::class_<SO3>(m, "SO3", "SO(3) rotation")
         .def(py::init<>())
-        .def(py::init<const Eigen::Matrix3d&>(), py::arg("matrix"))
         .def_static("Identity", &SO3::Identity)
         .def_static("FromAxisAngle", &SO3::FromAxisAngle,
                    py::arg("axis"), py::arg("angle"))
@@ -52,7 +50,6 @@ void bind_math(py::module_& m) {
     // Rotation
     py::class_<Rotation>(m, "Rotation", "Classical rotation")
         .def(py::init<>())
-        .def(py::init<const Eigen::Matrix3d&>(), py::arg("matrix"))
         .def_static("Identity", &Rotation::Identity)
         .def_static("FromEuler",
                    py::overload_cast<double, double, double, EulerConvention>(&Rotation::FromEuler),
@@ -66,9 +63,6 @@ void bind_math(py::module_& m) {
     // Transform
     py::class_<Transform>(m, "Transform", "4x4 homogeneous transformation")
         .def(py::init<>())
-        .def(py::init<const Eigen::Matrix3d&, const Eigen::Vector3d&>(),
-             py::arg("rotation"), py::arg("translation"))
-        .def(py::init<const Eigen::Matrix4d&>(), py::arg("matrix"))
         .def_static("Identity", &Transform::Identity)
         .def_static("Translation",
                    py::overload_cast<double, double, double>(&Transform::Translation),

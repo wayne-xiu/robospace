@@ -66,18 +66,21 @@ def test_robot_fk():
     """Test robot forward kinematics"""
     urdf_path = os.path.join(os.path.dirname(__file__), '../test_data/simple_2r.urdf')
     robot = rs.Robot.from_urdf(urdf_path)
-    print("  - Robot loaded")
 
     # FK at zero configuration
     q = np.array([0.0, 0.0])
-    print("  - Calling fk()...")
-    T = robot.fk(q)
-    print("  - fk() returned")
+    
+    # FK returns SE3 object
+    T = robot.fk(q, "link2")
     assert T is not None
 
     # Check translation
     t = T.translation()
     assert len(t) == 3
+
+    # Check rotation
+    R = T.rotation()
+    assert R.shape == (3, 3)
 
 
 def test_robot_jacobian():
@@ -115,12 +118,10 @@ if __name__ == '__main__':
     test_robot_from_urdf()
     print("✓ Robot URDF loading test passed")
 
-    # Skip FK and Jacobian tests due to segfault issue
-    # TODO: Debug and fix segfault in robot.fk() binding
-    # test_robot_fk()
-    # print("✓ Robot FK test passed")
+    test_robot_fk()
+    print("✓ Robot FK test passed")
 
-    # test_robot_jacobian()
-    # print("✓ Robot Jacobian test passed")
+    test_robot_jacobian()
+    print("✓ Robot Jacobian test passed")
 
-    print("\n✅ Basic tests passed (FK/Jacobian tests disabled - needs debugging)")
+    print("\n✅ All tests passed!")

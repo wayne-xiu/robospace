@@ -21,7 +21,7 @@ void bind_model(py::module_& m) {
         .export_values();
 
     // Link class
-    py::class_<Link, std::shared_ptr<Link>>(m, "Link", "Robot link with physical properties")
+    py::class_<Link>(m, "Link", "Robot link with physical properties")
         .def(py::init<const std::string&>(),
              py::arg("name"),
              "Create link with name")
@@ -37,7 +37,7 @@ void bind_model(py::module_& m) {
         });
 
     // Joint class
-    py::class_<Joint, std::shared_ptr<Joint>>(m, "Joint", "Robot joint connecting links")
+    py::class_<Joint>(m, "Joint", "Robot joint connecting links")
         .def(py::init<const std::string&, JointType, int, int>(),
              py::arg("name"), py::arg("type"),
              py::arg("parent_link_id"), py::arg("child_link_id"),
@@ -67,7 +67,7 @@ void bind_model(py::module_& m) {
         });
 
     // Tool class
-    py::class_<Tool, std::shared_ptr<Tool>>(m, "Tool", "End-effector tool with TCP")
+    py::class_<Tool>(m, "Tool", "End-effector tool with TCP")
         .def(py::init<const std::string&>(),
              py::arg("name"),
              "Create tool with name (TCP at origin)")
@@ -84,7 +84,7 @@ void bind_model(py::module_& m) {
         });
 
     // Frame class
-    py::class_<Frame, std::shared_ptr<Frame>>(m, "Frame", "Reference frame in robot scene")
+    py::class_<Frame>(m, "Frame", "Reference frame in robot scene")
         .def(py::init<const std::string&>(),
              py::arg("name"),
              "Create frame with name")
@@ -94,7 +94,7 @@ void bind_model(py::module_& m) {
         });
 
     // Robot class - Main API
-    py::class_<Robot, std::shared_ptr<Robot>>(m, "Robot", "Robot manipulator with kinematics")
+    py::class_<Robot>(m, "Robot", "Robot manipulator with kinematics")
         .def(py::init<const std::string&>(),
              py::arg("name"),
              "Create robot with name")
@@ -125,31 +125,29 @@ void bind_model(py::module_& m) {
         .def("has_link", &Robot::has_link, py::arg("name"), "Check if link exists")
         .def("has_joint", &Robot::has_joint, py::arg("name"), "Check if joint exists")
 
-        // Forward kinematics
-        .def("fk",
-             py::overload_cast<const Eigen::VectorXd&, const std::string&>(&Robot::fk, py::const_),
-             py::arg("q"), py::arg("link_name"),
-             "Compute forward kinematics for a link")
-        .def("fk",
-             py::overload_cast<const Eigen::VectorXd&>(&Robot::fk, py::const_),
-             py::arg("q"),
-             "Compute forward kinematics for flange (includes active tool offset)")
-        .def("fk_all", py::overload_cast<const Eigen::VectorXd&>(&Robot::fk_all, py::const_),
-             py::arg("q"),
-             "Compute poses for all links")
+        // Forward kinematics - Return matrix to avoid alignment issues
+        .def("fk", [](const Robot& self, Eigen::Ref<const Eigen::VectorXd> q, const std::string& link_name) -> robospace::math::SE3 {
+            return self.fk(q, link_name);
+        }, py::arg("q"), py::arg("link_name"),
+           "Compute forward kinematics for a specific link ()")
+        .def("fk_all", [](const Robot& self, Eigen::Ref<const Eigen::VectorXd> q) {
+            return self.fk_all(q);
+        }, py::arg("q"),
+           "Compute poses for all links")
 
-        // Jacobian
-        .def("jacob0",
-             py::overload_cast<const Eigen::VectorXd&>(&Robot::jacob0, py::const_),
-             py::arg("q"),
-             "Compute Jacobian in base frame")
-        .def("jacobe",
-             py::overload_cast<const Eigen::VectorXd&>(&Robot::jacobe, py::const_),
-             py::arg("q"),
-             "Compute Jacobian in end-effector frame")
-        .def("manipulability", &Robot::manipulability,
-             py::arg("q"),
-             "Compute manipulability measure (singularity detection)")
+        // Jacobian - also use lambdas for consistency
+        .def("jacob0", [](const Robot& self, Eigen::Ref<const Eigen::VectorXd> q) {
+            return self.jacob0(q);
+        }, py::arg("q"),
+           "Compute Jacobian in base frame")
+        .def("jacobe", [](const Robot& self, Eigen::Ref<const Eigen::VectorXd> q) {
+            return self.jacobe(q);
+        }, py::arg("q"),
+           "Compute Jacobian in end-effector frame")
+        .def("manipulability", [](const Robot& self, Eigen::Ref<const Eigen::VectorXd> q) {
+            return self.manipulability(q);
+        }, py::arg("q"),
+           "Compute manipulability measure (singularity detection)")
 
         // Tool management
         .def("add_tool", &Robot::add_tool,
