@@ -14,18 +14,7 @@ namespace robospace {
 namespace model {
 
 // Robot model with kinematic chain
-//
-// UNITS: All internal representations use SI units:
-//   - Linear: meters (m)
-//   - Angular: radians (rad)
-//   - Time: seconds (s)
-//   - Mass: kilograms (kg)
-//
-// For industrial workflows (mm, degrees), use robospace::units conversion utilities.
-// Example:
-//   robot.set_joints(units::deg_to_rad(q_deg));
-//   SE3 T = robot.fk(units::deg_to_rad(q_deg));
-//   std::cout << units::m_to_mm(T.translation()) << " mm\n";
+// UNITS: SI (meters, radians). Use robospace::units for mm/deg conversions.
 class Robot : public Entity {
 public:
     // Construction
@@ -43,7 +32,7 @@ public:
     bool is_valid() const { return tree_.is_valid(); }
     std::pair<Eigen::VectorXd, Eigen::VectorXd> joint_limits() const;
 
-    // Joint space configuration (radians)
+    // Joint space configuration
     const Eigen::VectorXd& joints() const { return tree_.configuration(); }
     void set_joints(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
 
@@ -51,13 +40,13 @@ public:
     void set_home(const Eigen::VectorXd& q);
     bool has_home() const { return home_position_.size() > 0; }
 
-    // Forward kinematics (stateless - explicit q in radians, returns position in meters)
+    // Forward kinematics (stateless)
     math::SE3 fk(const Eigen::VectorXd& q) const;
     math::SE3 fk(const Eigen::VectorXd& q, const std::string& link_name) const;
     math::SE3 fk(const Eigen::VectorXd& q, int link_id) const;
     std::vector<math::SE3> fk_all(const Eigen::VectorXd& q) const;
 
-    // Forward kinematics (stateful - uses stored q in radians, returns position in meters)
+    // Forward kinematics (stateful)
     math::SE3 fk() const;
     math::SE3 fk(const std::string& link_name) const;
     math::SE3 fk(int link_id) const;
