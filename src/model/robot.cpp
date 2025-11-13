@@ -107,15 +107,13 @@ std::vector<math::SE3> Robot::fk_all() const {
     return fk_all(tree_.configuration());
 }
 
-// Differential kinematics (placeholders for Step 7)
+// Differential kinematics
 Eigen::MatrixXd Robot::jacob0(const Eigen::VectorXd& q) const {
-    (void)q;
-    throw std::runtime_error("jacob0 not yet implemented (Step 7)");
+    return tree_.compute_jacobian_base(q);
 }
 
 Eigen::MatrixXd Robot::jacobe(const Eigen::VectorXd& q) const {
-    (void)q;
-    throw std::runtime_error("jacobe not yet implemented (Step 7)");
+    return tree_.compute_jacobian_ee(q);
 }
 
 Eigen::MatrixXd Robot::jacob0() const {
@@ -261,5 +259,13 @@ Robot Robot::from_urdf_string(const std::string& urdf_string) {
     return URDFParser::parse_string(urdf_string);
 }
 
+double Robot::manipulability(const Eigen::VectorXd& q) const {
+    Eigen::MatrixXd J = jacob0(q);
+    Eigen::MatrixXd JJT = J * J.transpose();
+    double det = JJT.determinant();
+    return std::sqrt(std::abs(det));
+}
+
 } // namespace model
 } // namespace robospace
+

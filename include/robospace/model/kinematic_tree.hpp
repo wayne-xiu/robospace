@@ -55,6 +55,10 @@ public:
     std::vector<math::SE3> compute_forward_kinematics(const Eigen::VectorXd& q) const;
     math::SE3 compute_link_pose(const Eigen::VectorXd& q, int link_id) const;
 
+    // Jacobian (stateless)
+    Eigen::MatrixXd compute_jacobian_base(const Eigen::VectorXd& q) const;
+    Eigen::MatrixXd compute_jacobian_ee(const Eigen::VectorXd& q) const;
+
 private:
     std::vector<Link> links_;
     std::vector<Joint> joints_;

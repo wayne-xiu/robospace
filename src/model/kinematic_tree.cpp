@@ -96,5 +96,58 @@ math::SE3 KinematicTree::compute_link_pose(const Eigen::VectorXd& q, int link_id
     return pose;
 }
 
+Eigen::MatrixXd KinematicTree::compute_jacobian_base(const Eigen::VectorXd& q) const {
+    if (q.size() != num_joints()) {
+        throw std::invalid_argument("Configuration size mismatch");
+    }
+    if (num_joints() == 0) {
+        return Eigen::MatrixXd::Zero(6, 0);
+    }
+
+    const int n = num_joints();
+    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, n);
+
+    std::vector<math::SE3> poses = compute_forward_kinematics(q);
+    math::SE3 T_ee = poses.back();
+    Eigen::Vector3d p_ee = T_ee.translation();
+
+    for (int i = 0; i < n; ++i) {
+        math::SE3 T_i = poses[i];
+        Eigen::Vector3d p_i = T_i.translation();
+        Eigen::Vector3d z_i = T_i.rotation().col(2);
+
+        if (joints_[i].is_revolute()) {
+            J.block<3, 1>(0, i) = z_i.cross(p_ee - p_i);
+            J.block<3, 1>(3, i) = z_i;
+        } else if (joints_[i].is_prismatic()) {
+            J.block<3, 1>(0, i) = z_i;
+            J.block<3, 1>(3, i) = Eigen::Vector3d::Zero();
+        }
+    }
+
+    return J;
+}
+
+Eigen::MatrixXd KinematicTree::compute_jacobian_ee(const Eigen::VectorXd& q) const {
+    Eigen::MatrixXd J0 = compute_jacobian_base(q);
+
+    if (num_joints() == 0) {
+        return J0;
+    }
+
+    std::vector<math::SE3> poses = compute_forward_kinematics(q);
+    math::SE3 T_ee = poses.back();
+
+    Eigen::Matrix3d R_ee = T_ee.rotation();
+    Eigen::Matrix3d R_ee_T = R_ee.transpose();
+
+    Eigen::MatrixXd Ad_inv(6, 6);
+    Ad_inv.setZero();
+    Ad_inv.block<3, 3>(0, 0) = R_ee_T;
+    Ad_inv.block<3, 3>(3, 3) = R_ee_T;
+
+    return Ad_inv * J0;
+}
+
 } // namespace model
 } // namespace robospace
