@@ -48,6 +48,18 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(tinyxml2)
+set_target_properties(tinyxml2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# pybind11 (for Python bindings)
+if(BUILD_PYTHON)
+    FetchContent_Declare(
+        pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG v2.11.1
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(pybind11)
+endif()
 
 # Include directories
 include_directories(
