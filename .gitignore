@@ -50,6 +50,7 @@ latex/
 
 # Tests
 test_results/
+Testing/
 *.gcov
 *.gcda
 *.gcno
