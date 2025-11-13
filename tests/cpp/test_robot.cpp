@@ -381,3 +381,16 @@ TEST_CASE("Robot: Kinematic tree access", "[robot]") {
     REQUIRE(tree.num_links() == 3);
     REQUIRE(tree.num_joints() == 2);
 }
+
+TEST_CASE("Robot: joints() and set_joints() API", "[robot]") {
+    Robot robot = create_2dof_robot();
+
+    Eigen::VectorXd q(2);
+    q << 0.5, -0.3;
+    robot.set_joints(q);
+
+    const Eigen::VectorXd& q_retrieved = robot.joints();
+    REQUIRE(q_retrieved.size() == 2);
+    REQUIRE_THAT(q_retrieved(0), Catch::Matchers::WithinAbs(0.5, 1e-10));
+    REQUIRE_THAT(q_retrieved(1), Catch::Matchers::WithinAbs(-0.3, 1e-10));
+}

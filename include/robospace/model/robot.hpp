@@ -125,6 +125,10 @@ public:
     const KinematicTree& kinematic_tree() const { return tree_; }
     KinematicTree& kinematic_tree() { return tree_; }
 
+    // Joint configuration API
+    const Eigen::VectorXd& joints() const { return tree_.configuration(); }
+    void set_joints(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
+
     // === FORWARD KINEMATICS ===
 
     /**
