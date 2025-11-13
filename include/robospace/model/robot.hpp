@@ -58,6 +58,8 @@ public:
     Eigen::MatrixXd jacob0() const;
     Eigen::MatrixXd jacobe() const;
 
+    double manipulability(const Eigen::VectorXd& q) const;
+
     // Base frame
     void set_base(const math::SE3& base);
     const math::SE3& base() const { return base_frame_; }
