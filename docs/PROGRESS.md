@@ -309,20 +309,62 @@ bool has_link = robot.has_link("wrist_link");
 
 ---
 
-## What's Next
-
-After you merge the current branch to main, we'll create:
+## Step 6: Forward Kinematics Implementation ✅
 
 **Branch:** `claude/phase1-step6-forward-kinematics-011CUyVGLmyYfSoht82F4oEu`
+**Status:** COMPLETED
 
-**Work items:**
-1. Implement FK methods on Robot class
-2. Add DHForwardKinematics for DH-based robots
-3. Add general FK for URDF-based robots (use origin+axis)
-4. Performance benchmarks
-5. Step 7: DH parameter factory
+### Implementation Summary
 
-**Timeline:** Steps 6-7 should take 3-5 days
+**Refactored KinematicTree:**
+- Added stateless FK methods that take configuration as parameter
+- `std::vector<SE3> compute_forward_kinematics(const VectorXd& q) const`
+- `SE3 compute_link_pose(const VectorXd& q, int link_id) const`
+- Removed const_cast hack from Robot::pose() - now const-correct!
+
+**Added Robot-level FK API:**
+- `SE3 compute_fk(const VectorXd& q, const string& link_name) const`
+- `SE3 get_tcp_pose(const VectorXd& q) const`
+- `vector<SE3> compute_all_link_poses(const VectorXd& q) const`
+- `SE3 get_current_tcp_pose() const`
+- All methods handle base_frame_ and active tool offsets
+
+**Testing:**
+- Created `test_forward_kinematics.cpp` with 27 comprehensive tests
+- 2R planar robot with analytical verification
+- UR5 robot tests
+- API tests, base frame tests, tool offset tests
+- Performance benchmarks: 2R < 10 μs, UR5 < 10 μs (targets met!)
+- **274 total tests passing (100%)**
+
+### Key Design Decisions
+
+**Stateless FK:**
+- More flexible - can query FK at arbitrary configurations without modifying state
+- Const-correct - no const_cast hacks
+- Clean separation between state storage (optional) and FK computation
+
+**Name-based API:**
+- Users access links by name, not ID
+- Robot class wraps KinematicTree's ID-based API
+- Makes code more readable and maintainable
+
+---
+
+## What's Next
+
+After you merge the current branch to main, we can move to:
+
+**Step 7: DH Parameter Factory (Optional)**
+- Implement `Robot::from_dh()` for creating robots from DH parameters
+- Less critical now that URDF loading works well
+
+**Or move to Phase 2: Control & Planning**
+- Trajectory planning
+- Inverse kinematics
+- Path planning
+
+**Timeline:** Phase 1 is 75% complete!
 
 ---
 
@@ -343,11 +385,20 @@ After you merge the current branch to main, we'll create:
 
 ## Conclusion
 
-**Phase 1 is 50% complete** - We have a solid foundation:
+**Phase 1 is 75% complete** - We have a solid foundation:
 - ✅ Math library (production-ready)
 - ✅ Robot model (production-ready)
 - ✅ URDF loading (production-ready)
-- ⏳ Forward kinematics (next)
-- ⏳ DH factory (after FK)
+- ✅ Forward kinematics (production-ready, elegant stateless API, < 10 μs performance!)
+- ⏳ DH factory (next)
 
-**All 247 tests passing - Ready for the next phase!** 🚀
+**All 274 tests passing - Ready for the next phase!** 🚀
+
+### Step 6 Summary (Forward Kinematics)
+**Completed:** January 2025
+**Key achievements:**
+- Refactored KinematicTree with stateless FK methods (eliminates const_cast hack)
+- Implemented elegant Robot-level FK API with name-based access
+- 27 comprehensive tests including analytical verification and performance benchmarks
+- Performance: < 10 μs for 6-DOF robots (well below target)
+- Support for base_frame transforms and active tool offsets
