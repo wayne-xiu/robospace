@@ -394,3 +394,28 @@ TEST_CASE("Robot: joints() and set_joints() API", "[robot]") {
     REQUIRE_THAT(q_retrieved(0), Catch::Matchers::WithinAbs(0.5, 1e-10));
     REQUIRE_THAT(q_retrieved(1), Catch::Matchers::WithinAbs(-0.3, 1e-10));
 }
+
+TEST_CASE("Robot: home position API", "[robot]") {
+    Robot robot = create_2dof_robot();
+
+    REQUIRE_FALSE(robot.has_home());
+
+    Eigen::VectorXd home(2);
+    home << 0.1, -0.2;
+    robot.set_home(home);
+
+    REQUIRE(robot.has_home());
+    const Eigen::VectorXd& home_retrieved = robot.home();
+    REQUIRE(home_retrieved.size() == 2);
+    REQUIRE_THAT(home_retrieved(0), Catch::Matchers::WithinAbs(0.1, 1e-10));
+    REQUIRE_THAT(home_retrieved(1), Catch::Matchers::WithinAbs(-0.2, 1e-10));
+}
+
+TEST_CASE("Robot: set_home with wrong size throws", "[robot]") {
+    Robot robot = create_2dof_robot();
+
+    Eigen::VectorXd wrong_size(3);
+    wrong_size << 0.0, 0.0, 0.0;
+
+    REQUIRE_THROWS_AS(robot.set_home(wrong_size), std::invalid_argument);
+}

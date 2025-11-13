@@ -129,6 +129,11 @@ public:
     const Eigen::VectorXd& joints() const { return tree_.configuration(); }
     void set_joints(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
 
+    // Home position
+    const Eigen::VectorXd& home() const { return home_position_; }
+    void set_home(const Eigen::VectorXd& q);
+    bool has_home() const { return home_position_.size() > 0; }
+
     // === FORWARD KINEMATICS ===
 
     /**
@@ -172,6 +177,9 @@ private:
     // Tools attached to flange
     std::vector<Tool> tools_;
     int active_tool_id_ = -1;
+
+    // Home position
+    Eigen::VectorXd home_position_;
 
     // Name-to-ID maps
     std::unordered_map<std::string, int> link_name_to_id_;

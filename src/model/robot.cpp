@@ -210,6 +210,14 @@ void Robot::set_active_tool(const std::string& tool_name) {
     active_tool_id_ = tool_id(tool_name);
 }
 
+// Home position
+void Robot::set_home(const Eigen::VectorXd& q) {
+    if (q.size() != num_joints()) {
+        throw std::invalid_argument("Configuration size mismatch");
+    }
+    home_position_ = q;
+}
+
 // === FORWARD KINEMATICS ===
 
 math::SE3 Robot::compute_fk(const Eigen::VectorXd& q, const std::string& link_name) const {
