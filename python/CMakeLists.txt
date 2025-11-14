@@ -8,12 +8,14 @@ pybind11_add_module(_robospace_core
     bindings/module.cpp
     bindings/math_bindings.cpp
     bindings/model_bindings.cpp
+    bindings/kinematics_bindings.cpp
 )
 
 # Link against robospace libraries
 target_link_libraries(_robospace_core PRIVATE
     robospace-math
     robospace-model
+    robospace-kinematics
     Eigen3::Eigen
 )
 

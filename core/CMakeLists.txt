@@ -74,14 +74,37 @@ set_target_properties(robospace-model PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-# Kinematics module (will be populated later in Phase 1)
-# add_library(robospace-kinematics ...)
+# Kinematics module
+set(KINEMATICS_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/kinematics/ik_solver.cpp
+)
+
+set(KINEMATICS_HEADERS
+    ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/ik_solver.hpp
+)
+
+add_library(robospace-kinematics ${KINEMATICS_SOURCES} ${KINEMATICS_HEADERS})
+target_include_directories(robospace-kinematics PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(robospace-kinematics PUBLIC
+    Eigen3::Eigen
+    robospace-math
+    robospace-model
+)
+set_target_properties(robospace-kinematics PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE ON
+)
 
 # Main robospace library (combines all modules)
 add_library(robospace-core INTERFACE)
 target_link_libraries(robospace-core INTERFACE
     robospace-math
     robospace-model
+    robospace-kinematics
 )
 add_library(robospace ALIAS robospace-core)
 
@@ -94,7 +117,7 @@ add_library(robospace ALIAS robospace-core)
 # )
 
 # Installation
-install(TARGETS robospace-math robospace-model
+install(TARGETS robospace-math robospace-model robospace-kinematics
     EXPORT robospaceTargets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
