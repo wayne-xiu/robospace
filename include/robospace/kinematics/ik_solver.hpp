@@ -135,12 +135,22 @@ public:
 
     /**
      * @brief Set joint update step size
-     * @param alpha Step size (default: 1.0)
+     * @param alpha Step size (default: 0.8)
      *
      * Smaller values: More conservative, slower but more stable
      * Larger values: Faster but may overshoot
      */
     void set_step_size(double alpha) { step_size_ = alpha; }
+
+    /**
+     * @brief Set error gain
+     * @param gain Error gain factor (default: 1.0)
+     *
+     * Scales the error before computing joint update.
+     * Larger values: Faster convergence but may overshoot
+     * Smaller values: More stable but slower
+     */
+    void set_error_gain(double gain) { error_gain_ = gain; }
 
     // Getters
 
@@ -155,11 +165,12 @@ private:
     const model::Robot& robot_;
 
     // Solver parameters
-    double position_tolerance_ = 1e-6;       ///< Position error tolerance (m)
-    double orientation_tolerance_ = 1e-4;    ///< Orientation error tolerance (rad)
-    int max_iterations_ = 500;               ///< Maximum iterations (increased for better convergence)
-    double damping_ = 0.1;                   ///< Damping factor λ for DLS (increased for stability)
-    double step_size_ = 0.5;                 ///< Joint update step size (decreased for stability)
+    double position_tolerance_ = 1e-4;       ///< Position error tolerance (m) - relaxed for practical convergence
+    double orientation_tolerance_ = 1e-3;    ///< Orientation error tolerance (rad) - relaxed for practical convergence
+    int max_iterations_ = 1000;              ///< Maximum iterations
+    double damping_ = 0.01;                  ///< Damping factor λ for DLS
+    double step_size_ = 1.0;                 ///< Joint update step size
+    double error_gain_ = 0.5;                ///< Error scaling gain (conservative)
     IKMode mode_ = IKMode::FULL_POSE;        ///< Solver mode
 
     /**

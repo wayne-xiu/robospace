@@ -76,14 +76,25 @@ IKResult IKSolver::solve(const math::SE3& target_pose, const Eigen::VectorXd& q_
                 break;
         }
 
-        // Compute damped least squares step
-        Eigen::VectorXd dq = compute_dls_step(J_reduced, error_reduced);
+        // Scale error by gain before solving
+        Eigen::VectorXd error_scaled = error_gain_ * error_reduced;
 
-        // Update joint configuration with step size
+        // Compute damped least squares step
+        Eigen::VectorXd dq = compute_dls_step(J_reduced, error_scaled);
+
+        // Check for NaN or infinite values
+        if (!dq.allFinite()) {
+            result.success = false;
+            result.q_solution = q;
+            result.message = "IK solver encountered NaN or infinite values";
+            return result;
+        }
+
+        // Update joint configuration
         q += step_size_ * dq;
 
-        // Store current error
-        result.final_error = error.norm();
+        // Store current error for the reduced problem (position-only or full)
+        result.final_error = error_reduced.norm();
     }
 
     // Max iterations reached without convergence
@@ -105,16 +116,19 @@ Eigen::VectorXd IKSolver::compute_pose_error(
     error.head(3) = position_error;
 
     // Orientation error using axis-angle representation
-    // Compute relative rotation: R_error = R_current^T * R_target
+    // We want the error that brings us from current to target rotation
+    // R_target = R_current * R_error  =>  R_error = R_current^T * R_target
     Eigen::Matrix3d R_current = current.rotation();
     Eigen::Matrix3d R_target = target.rotation();
     Eigen::Matrix3d R_error = R_current.transpose() * R_target;
 
-    // Convert rotation matrix to SO3 and extract axis-angle
+    // Convert rotation matrix to axis-angle (using SO3 logarithm)
+    // This gives the angular velocity in the current end-effector frame
     math::SO3 so3_error(R_error);
     math::so3 orientation_error_log = math::log_SO3(so3_error);
 
-    // Rotate orientation error to base frame
+    // Transform the orientation error from EE frame to base frame
+    // ω_base = R_current * ω_ee
     Eigen::Vector3d orientation_error = R_current * orientation_error_log.vector();
     error.tail(3) = orientation_error;
 
@@ -149,21 +163,25 @@ Eigen::VectorXd IKSolver::compute_dls_step(
     const Eigen::VectorXd& error) const {
 
     const int m = J.rows();  // Task space dimension (3 or 6)
+    const int n = J.cols();  // Joint space dimension
 
     // Damped Least Squares (Levenberg-Marquardt):
-    // Δq = J^T(JJ^T + λ²I)^(-1) * e
+    // Two formulations:
+    // 1. Δq = J^T(JJ^T + λ²I)^(-1) * e  (used when m < n, i.e., underdetermined)
+    // 2. Δq = (J^TJ + λ²I)^(-1) J^T * e (used when m >= n, more numerically stable)
     //
-    // This is more stable than pseudoinverse near singularities
+    // For robotics IK, we typically have m=3 or m=6 task dimensions
+    // and n=DOF joint dimensions. Use formulation (2) for better stability.
 
-    // Compute JJ^T + λ²I
-    Eigen::MatrixXd JJT = J * J.transpose();
-    Eigen::MatrixXd A = JJT + damping_ * damping_ * Eigen::MatrixXd::Identity(m, m);
+    // Use formulation (2): Δq = (J^TJ + λ²I)^(-1) J^T * e
+    Eigen::MatrixXd JTJ = J.transpose() * J;
+    Eigen::MatrixXd A = JTJ + damping_ * damping_ * Eigen::MatrixXd::Identity(n, n);
 
-    // Solve: (JJ^T + λ²I) * y = e
-    Eigen::VectorXd y = A.ldlt().solve(error);
+    // Compute J^T * error
+    Eigen::VectorXd JT_error = J.transpose() * error;
 
-    // Compute: Δq = J^T * y
-    Eigen::VectorXd dq = J.transpose() * y;
+    // Solve: (J^TJ + λ²I) * dq = J^T * e
+    Eigen::VectorXd dq = A.ldlt().solve(JT_error);
 
     return dq;
 }
