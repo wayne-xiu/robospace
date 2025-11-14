@@ -27,6 +27,7 @@ add_executable(robospace-tests
     cpp/test_units.cpp
     cpp/test_jacobian.cpp
     cpp/test_inverse_kinematics.cpp
+    cpp/test_ik_ur5.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE
