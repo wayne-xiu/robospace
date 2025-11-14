@@ -34,6 +34,11 @@ from ._robospace_core import (
 
     # Joint types
     JointType,
+
+    # Kinematics
+    IKSolver,
+    IKResult,
+    IKMode,
 )
 
 __version__ = "0.1.0"
@@ -66,4 +71,9 @@ __all__ = [
     "Tool",
     "Frame",
     "JointType",
+
+    # Kinematics
+    "IKSolver",
+    "IKResult",
+    "IKMode",
 ]
