@@ -61,35 +61,46 @@ pip install -e .
 import robospace as rs
 import numpy as np
 
-# Classical approach: homogeneous transformation
-T = rs.Transform(translation=[1, 2, 3])
-print(T.matrix())
+# Math types - SE3 transformations
+T = rs.SE3.Identity()
+pos = T.translation()  # NumPy array [0, 0, 0]
 
-# Modern approach: Lie algebra
-omega = np.array([0, 0, 1.57])  # 90° rotation around Z
-v = np.array([1, 0, 0])
-xi = rs.se3(omega, v)
-g = rs.exp_se3(xi)  # Exponential map
-print(g.matrix())
+# Classical transformations
+T_classic = rs.Transform.Translation(1.0, 2.0, 3.0)
+mat = T_classic.matrix()  # 4×4 NumPy array
 
-# Robot kinematics
+# Load robot from URDF
 robot = rs.Robot.from_urdf("models/ur5.urdf")
-q = np.array([0, -np.pi/2, np.pi/2, 0, np.pi/2, 0])
-ee_pose = robot.compute_fk(q)
+print(f"Robot DOF: {robot.dof()}")
+
+# Forward kinematics
+q = np.zeros(6)
+T_ee = robot.fk(q, "ee_link")  # Returns SE3 object
+position = T_ee.translation()   # Extract [x, y, z]
+rotation = T_ee.rotation()      # Extract 3×3 rotation matrix
+
+# Jacobian computation
+J_base = robot.jacob0(q)        # 6×6 Jacobian in base frame
+J_ee = robot.jacobe(q)          # 6×6 Jacobian in EE frame
+m = robot.manipulability(q)     # Singularity measure
 ```
 
 ## Development Status
 
-**Phase 1 (In Progress)**: Foundation - Math library, robot model, basic kinematics
+**Phase 1 ✅ COMPLETE**: Foundation - Math library, robot model, kinematics, Python bindings
+- All 305 tests passing (298 C++ + 7 Python)
+- Production-ready for FK, Jacobians, URDF loading
+- Full Python/NumPy integration with Lie algebra support
 
-See [DESIGN.md](DESIGN.md) for complete architecture and roadmap.
+**Phase 2 (Next)**: Inverse kinematics, dynamics, trajectory planning
+
+See [docs/PHASE1.md](docs/PHASE1.md) for comprehensive Phase 1 summary and [docs/DESIGN.md](docs/DESIGN.md) for architecture.
 
 ## Documentation
 
-- [Architecture Design](DESIGN.md)
-- [Phase 1 Tasks](docs/phase1-detailed-tasks.md)
-- [C++/Python Implementation Guide](docs/cpp-python-architecture.md)
-- [Git Workflow](docs/git-workflow-best-practices.md)
+- [Phase 1 Complete Summary](docs/PHASE1.md) - Comprehensive overview of Phase 1
+- [Architecture Design](docs/DESIGN.md) - High-level architecture and roadmap
+- [C++/Python Implementation Guide](docs/cpp-python-architecture.md) - Technical details
 
 ## References
 
