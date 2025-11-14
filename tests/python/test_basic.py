@@ -51,6 +51,55 @@ def test_transform_basic():
     assert np.allclose(t, [1, 2, 3])
 
 
+def test_lie_algebra():
+    """Test Lie algebra types and exponential maps"""
+    # se3 - twist
+    omega = np.array([0, 0, 1.57])  # 90° rotation around Z
+    v = np.array([1, 0, 0])
+    xi = rs.make_se3(omega, v)
+    assert xi is not None
+
+    # Check vector representation
+    xi_vec = xi.vector()
+    assert xi_vec.shape == (6,)
+    assert np.allclose(xi_vec[:3], omega)
+    assert np.allclose(xi_vec[3:], v)
+
+    # Exponential map: se3 -> SE3
+    g = rs.exp_se3(xi)
+    assert g is not None
+    assert isinstance(g, rs.SE3)
+
+    # Check we can get the matrix
+    mat = g.matrix()
+    assert mat.shape == (4, 4)
+
+    # Logarithm map: SE3 -> se3 (roundtrip)
+    xi_back = rs.log_SE3(g)
+    assert xi_back is not None
+    xi_back_vec = xi_back.vector()
+    assert np.allclose(xi_back_vec, xi_vec, atol=1e-6)
+
+    # so3 - angular velocity
+    omega2 = np.array([0, 0, np.pi/2])
+    w = rs.make_so3(omega2)
+    assert w is not None
+
+    omega_vec = w.vector()
+    assert omega_vec.shape == (3,)
+    assert np.allclose(omega_vec, omega2)
+
+    # Exponential map: so3 -> SO3
+    R = rs.exp_so3(w)
+    assert R is not None
+    assert isinstance(R, rs.SO3)
+
+    # Logarithm map: SO3 -> so3 (roundtrip)
+    w_back = rs.log_SO3(R)
+    w_back_vec = w_back.vector()
+    assert np.allclose(w_back_vec, omega_vec, atol=1e-6)
+
+
 def test_robot_from_urdf():
     """Test loading robot from URDF"""
     urdf_path = os.path.join(os.path.dirname(__file__), '../test_data/simple_2r.urdf')
@@ -114,6 +163,9 @@ if __name__ == '__main__':
 
     test_transform_basic()
     print("✓ Transform test passed")
+
+    test_lie_algebra()
+    print("✓ Lie algebra test passed")
 
     test_robot_from_urdf()
     print("✓ Robot URDF loading test passed")

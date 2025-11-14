@@ -4,6 +4,8 @@
 
 #include "robospace/math/SE3.hpp"
 #include "robospace/math/SO3.hpp"
+#include "robospace/math/se3.hpp"
+#include "robospace/math/so3.hpp"
 #include "robospace/math/rotation.hpp"
 #include "robospace/math/transform.hpp"
 
@@ -77,4 +79,78 @@ void bind_math(py::module_& m) {
         .def("__mul__", [](const Transform& self, const Transform& other) {
             return self * other;
         });
+
+    // se3 - Lie algebra element (twist)
+    py::class_<se3>(m, "se3", "se(3) Lie algebra element (twist)")
+        .def(py::init<>(), "Default constructor (zero twist)")
+        .def_static("Zero", &se3::Zero, "Create zero twist")
+        .def("vector", &se3::vector, "Get 6D vector representation [omega; v]")
+        .def("omega", &se3::omega, "Get angular velocity (3D)")
+        .def("v", &se3::v, "Get linear velocity (3D)")
+        .def("bracket", &se3::bracket, "Get 4×4 bracket matrix representation")
+        .def("__add__", [](const se3& self, const se3& other) {
+            return self + other;
+        })
+        .def("__sub__", [](const se3& self, const se3& other) {
+            return self - other;
+        })
+        .def("__mul__", [](const se3& self, double scalar) {
+            return self * scalar;
+        })
+        .def("__rmul__", [](const se3& self, double scalar) {
+            return scalar * self;
+        })
+        .def("__truediv__", [](const se3& self, double scalar) {
+            return self / scalar;
+        })
+        .def("__neg__", [](const se3& self) {
+            return -self;
+        });
+
+    // so3 - Lie algebra element (angular velocity)
+    py::class_<so3>(m, "so3", "so(3) Lie algebra element (angular velocity)")
+        .def(py::init<>(), "Default constructor (zero angular velocity)")
+        .def_static("Zero", &so3::Zero, "Create zero angular velocity")
+        .def("vector", &so3::vector, "Get 3D vector representation")
+        .def("bracket", &so3::bracket, "Get 3×3 skew-symmetric matrix")
+        .def("__add__", [](const so3& self, const so3& other) {
+            return self + other;
+        })
+        .def("__sub__", [](const so3& self, const so3& other) {
+            return self - other;
+        })
+        .def("__mul__", [](const so3& self, double scalar) {
+            return self * scalar;
+        })
+        .def("__rmul__", [](const so3& self, double scalar) {
+            return scalar * self;
+        })
+        .def("__truediv__", [](const so3& self, double scalar) {
+            return self / scalar;
+        })
+        .def("__neg__", [](const so3& self) {
+            return -self;
+        });
+
+    // Factory functions for creating se3 and so3 from numpy arrays
+    m.def("make_se3", [](Eigen::Ref<const Eigen::Vector3d> omega,
+                          Eigen::Ref<const Eigen::Vector3d> v) -> se3 {
+        return se3(Eigen::Vector3d(omega), Eigen::Vector3d(v));
+    }, py::arg("omega"), py::arg("v"),
+       "Create se3 twist from angular and linear velocity");
+
+    m.def("make_so3", [](Eigen::Ref<const Eigen::Vector3d> omega) -> so3 {
+        return so3(Eigen::Vector3d(omega));
+    }, py::arg("omega"),
+       "Create so3 from angular velocity vector");
+
+    // Exponential and logarithm maps
+    m.def("exp_se3", &exp_se3, py::arg("xi"),
+          "Exponential map: se(3) → SE(3)");
+    m.def("log_SE3", &log_SE3, py::arg("g"),
+          "Logarithm map: SE(3) → se(3)");
+    m.def("exp_so3", &exp_so3, py::arg("omega"),
+          "Exponential map: so(3) → SO(3)");
+    m.def("log_SO3", &log_SO3, py::arg("R"),
+          "Logarithm map: SO(3) → so(3)");
 }
