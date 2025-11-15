@@ -25,7 +25,9 @@ enum class IKMode {
 
 // Forward declarations
 class NumericalIKSolver;
+class AnalyticalIKSolver;
 struct SearchParams;
+struct IKConfiguration;
 
 /**
  * @brief Result of an IK solve attempt
@@ -98,21 +100,67 @@ public:
      */
     ~IKSolver();
 
+    // ========== SOLVER MODE ==========
+
+    /**
+     * @brief Solver selection mode
+     *
+     * Controls which solver type to use:
+     * - AUTO: Try analytical first (if available), fallback to numerical
+     * - ANALYTICAL: Use only analytical solver (fail if not available)
+     * - NUMERICAL: Use only numerical solver
+     */
+    enum class SolverMode {
+        AUTO,           ///< Automatic selection (analytical preferred)
+        ANALYTICAL,     ///< Analytical only
+        NUMERICAL       ///< Numerical only
+    };
+
+    // ========== PRIMARY SOLVE METHODS ==========
+
     /**
      * @brief Solve inverse kinematics for target pose
      *
-     * Iteratively updates joint configuration to minimize pose error using
-     * damped least squares Jacobian pseudoinverse method.
+     * Behavior depends on solver_mode:
+     * - AUTO: Try analytical (if available), fallback to numerical
+     * - ANALYTICAL: Use analytical only (fail if unavailable)
+     * - NUMERICAL: Use numerical only
      *
      * @param target_pose Desired end-effector pose in base frame
-     * @param q_seed Initial joint configuration (seed)
+     * @param q_seed Initial joint configuration (for numerical or solution selection)
      * @return IKResult with solution if successful
      *
      * @throws std::invalid_argument if q_seed size doesn't match robot DOF
      */
     IKResult solve(const math::SE3& target_pose, const Eigen::VectorXd& q_seed);
 
-    // Configuration methods
+    /**
+     * @brief Solve for ALL analytical IK solutions
+     *
+     * Only works if analytical solver is available.
+     * Returns all possible solutions (typically up to 8 for spherical wrist robots).
+     *
+     * @param target_pose Desired end-effector pose
+     * @return Vector of all solutions (empty if no analytical solver or unreachable)
+     */
+    std::vector<IKResult> solve_all(const math::SE3& target_pose);
+
+    /**
+     * @brief Solve with configuration preference
+     *
+     * Only works if analytical solver is available.
+     * Returns solution matching preferred configuration (shoulder/elbow/wrist).
+     *
+     * @param target_pose Desired end-effector pose
+     * @param q_seed Seed configuration (used if analytical solver not available)
+     * @param preferred Preferred configuration
+     * @return IKResult with preferred configuration
+     */
+    IKResult solve(const math::SE3& target_pose,
+                   const Eigen::VectorXd& q_seed,
+                   const IKConfiguration& preferred);
+
+    // ========== CONFIGURATION METHODS ==========
 
     /**
      * @brief Set position error tolerance (meters)
@@ -193,7 +241,37 @@ public:
      */
     void set_use_adaptive_damping(bool enable);
 
-    // Getters
+    /**
+     * @brief Set solver selection mode
+     * @param mode Solver mode (AUTO, ANALYTICAL, NUMERICAL)
+     */
+    void set_solver_mode(SolverMode mode);
+
+    /**
+     * @brief Register an analytical IK solver for this robot
+     *
+     * Allows manual registration of analytical solver.
+     * Normally, solvers are auto-detected in constructor.
+     *
+     * @param solver Analytical solver (takes ownership)
+     */
+    void register_analytical_solver(std::unique_ptr<AnalyticalIKSolver> solver);
+
+    // ========== QUERY METHODS ==========
+
+    /** @brief Check if analytical solver is available */
+    bool has_analytical_solver() const;
+
+    /** @brief Get name of analytical solver (if available) */
+    std::string analytical_solver_name() const;
+
+    /** @brief Get maximum number of analytical solutions */
+    int max_analytical_solutions() const;
+
+    /** @brief Get current solver mode */
+    SolverMode solver_mode() const;
+
+    // ========== NUMERICAL SOLVER GETTERS ==========
 
     double position_tolerance() const;
     double orientation_tolerance() const;
@@ -208,8 +286,24 @@ public:
 private:
     const model::Robot& robot_;
 
-    // Numerical solver (uses improved algorithm with random restart)
+    // Solvers
     std::unique_ptr<NumericalIKSolver> numerical_solver_;
+    std::unique_ptr<AnalyticalIKSolver> analytical_solver_;
+
+    // Solver mode
+    SolverMode solver_mode_ = SolverMode::AUTO;
+
+    /**
+     * @brief Auto-detect and create analytical solver for robot
+     *
+     * Tries to match robot against known analytical solver patterns:
+     * - Spherical wrist robots
+     * - OPW kinematics
+     * - Other recognized patterns
+     *
+     * @return Analytical solver if detected, nullptr otherwise
+     */
+    std::unique_ptr<AnalyticalIKSolver> create_analytical_solver();
 };
 
 } // namespace kinematics

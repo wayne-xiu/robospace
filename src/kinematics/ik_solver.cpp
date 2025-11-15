@@ -1,19 +1,114 @@
 #include <robospace/kinematics/ik_solver.hpp>
 #include <robospace/kinematics/numerical_ik.hpp>
+#include <robospace/kinematics/analytical_ik_base.hpp>
 
 namespace robospace {
 namespace kinematics {
 
 IKSolver::IKSolver(const model::Robot& robot)
     : robot_(robot),
-      numerical_solver_(std::make_unique<NumericalIKSolver>(robot)) {
+      numerical_solver_(std::make_unique<NumericalIKSolver>(robot)),
+      analytical_solver_(create_analytical_solver()) {
 }
 
 IKSolver::~IKSolver() = default;
 
+// ========== PRIMARY SOLVE METHODS ==========
+
 IKResult IKSolver::solve(const math::SE3& target_pose, const Eigen::VectorXd& q_seed) {
-    // Delegate to numerical solver
+    // AUTO mode: try analytical first, fallback to numerical
+    if (solver_mode_ == SolverMode::AUTO) {
+        if (analytical_solver_) {
+            // Use analytical solver
+            AnalyticalIKSolution analytical_sol = analytical_solver_->solve(target_pose, q_seed);
+
+            if (analytical_sol.valid) {
+                IKResult result;
+                result.success = true;
+                result.q_solution = analytical_sol.q;
+                result.from_analytical = true;
+                result.iterations = 0;
+                result.message = "Analytical IK solution";
+                return result;
+            }
+            // Analytical failed, fall through to numerical
+        }
+
+        // No analytical solver or it failed - use numerical
+        return numerical_solver_->solve(target_pose, q_seed);
+    }
+
+    // ANALYTICAL mode: analytical only
+    if (solver_mode_ == SolverMode::ANALYTICAL) {
+        if (!analytical_solver_) {
+            IKResult result;
+            result.success = false;
+            result.message = "Analytical solver not available for this robot";
+            return result;
+        }
+
+        AnalyticalIKSolution analytical_sol = analytical_solver_->solve(target_pose, q_seed);
+
+        IKResult result;
+        result.success = analytical_sol.valid;
+        result.q_solution = analytical_sol.q;
+        result.from_analytical = true;
+        result.iterations = 0;
+        result.message = analytical_sol.valid ? "Analytical IK solution" : analytical_sol.failure_reason;
+        return result;
+    }
+
+    // NUMERICAL mode: numerical only
     return numerical_solver_->solve(target_pose, q_seed);
+}
+
+std::vector<IKResult> IKSolver::solve_all(const math::SE3& target_pose) {
+    std::vector<IKResult> results;
+
+    if (!analytical_solver_) {
+        // No analytical solver available
+        return results;
+    }
+
+    // Get all analytical solutions
+    std::vector<AnalyticalIKSolution> analytical_solutions = analytical_solver_->solve_all(target_pose);
+
+    // Convert to IKResult format
+    for (const auto& sol : analytical_solutions) {
+        if (sol.valid) {
+            IKResult result;
+            result.success = true;
+            result.q_solution = sol.q;
+            result.from_analytical = true;
+            result.iterations = 0;
+            result.message = "Analytical IK solution";
+            results.push_back(result);
+        }
+    }
+
+    return results;
+}
+
+IKResult IKSolver::solve(const math::SE3& target_pose,
+                         const Eigen::VectorXd& q_seed,
+                         const IKConfiguration& preferred) {
+
+    if (!analytical_solver_) {
+        // No analytical solver - use numerical
+        return numerical_solver_->solve(target_pose, q_seed);
+    }
+
+    // Use analytical solver with configuration preference
+    AnalyticalIKSolution analytical_sol = analytical_solver_->solve(target_pose, preferred);
+
+    IKResult result;
+    result.success = analytical_sol.valid;
+    result.q_solution = analytical_sol.q;
+    result.from_analytical = true;
+    result.iterations = 0;
+    result.message = analytical_sol.valid ? "Analytical IK solution" : analytical_sol.failure_reason;
+
+    return result;
 }
 
 // ========== CONFIGURATION METHODS ==========
@@ -72,7 +167,39 @@ void IKSolver::set_use_adaptive_damping(bool enable) {
     numerical_solver_->set_search_params(params);
 }
 
-// ========== GETTERS ==========
+void IKSolver::set_solver_mode(SolverMode mode) {
+    solver_mode_ = mode;
+}
+
+void IKSolver::register_analytical_solver(std::unique_ptr<AnalyticalIKSolver> solver) {
+    analytical_solver_ = std::move(solver);
+}
+
+// ========== QUERY METHODS ==========
+
+bool IKSolver::has_analytical_solver() const {
+    return analytical_solver_ != nullptr;
+}
+
+std::string IKSolver::analytical_solver_name() const {
+    if (analytical_solver_) {
+        return analytical_solver_->solver_name();
+    }
+    return "none";
+}
+
+int IKSolver::max_analytical_solutions() const {
+    if (analytical_solver_) {
+        return analytical_solver_->max_solutions();
+    }
+    return 0;
+}
+
+IKSolver::SolverMode IKSolver::solver_mode() const {
+    return solver_mode_;
+}
+
+// ========== NUMERICAL SOLVER GETTERS ==========
 
 double IKSolver::position_tolerance() const {
     return numerical_solver_->position_tolerance();
@@ -108,6 +235,19 @@ bool IKSolver::use_random_restart() const {
 
 bool IKSolver::use_adaptive_damping() const {
     return numerical_solver_->search_params().use_adaptive_damping;
+}
+
+// ========== PRIVATE METHODS ==========
+
+std::unique_ptr<AnalyticalIKSolver> IKSolver::create_analytical_solver() {
+    // Auto-detect analytical solver for robot
+    // TODO: Implement detection for:
+    // - Spherical wrist robots (Step 3)
+    // - OPW kinematics (Step 4)
+    // - Other patterns
+
+    // For now, no analytical solvers implemented
+    return nullptr;
 }
 
 } // namespace kinematics
