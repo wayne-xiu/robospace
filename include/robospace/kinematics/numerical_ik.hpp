@@ -18,10 +18,10 @@ namespace kinematics {
  * - With p=0.1, n=100: Success rate >99.99%
  */
 struct SearchParams {
-    int max_searches = 20;         ///< Maximum random restart attempts (slimit)
-    int max_iterations = 100;      ///< Iterations per search attempt (ilimit)
+    int max_searches = 100;        ///< Maximum random restart attempts (slimit)
+    int max_iterations = 50;       ///< Iterations per search attempt (ilimit)
     uint32_t seed = 0;             ///< Random seed for reproducibility (0 = random)
-    bool use_random_restart = false; ///< Enable/disable random restart (opt-in for now)
+    bool use_random_restart = true; ///< Enable/disable random restart
     bool use_adaptive_damping = false; ///< Use Sugihara adaptive damping (experimental)
 };
 
@@ -101,9 +101,9 @@ private:
     SearchParams search_params_;
     double position_tolerance_ = 1e-4;       ///< Position convergence tolerance
     double orientation_tolerance_ = 1e-3;    ///< Orientation convergence tolerance
-    double base_damping_ = 0.01;             ///< Base damping factor
+    double base_damping_ = 0.1;              ///< Base damping factor (increased for stability)
     double step_size_ = 1.0;                 ///< Joint update step size
-    double error_gain_ = 0.5;                ///< Error scaling gain
+    double error_gain_ = 1.0;                ///< Error scaling gain
     IKMode mode_ = IKMode::FULL_POSE;        ///< Solver mode
 
     /**
