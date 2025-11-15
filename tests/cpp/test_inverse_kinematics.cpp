@@ -115,6 +115,36 @@ TEST_CASE("IK Solver: Reachable target position", "[ik][reachable]") {
     REQUIRE_THAT(pos_diff.norm(), Catch::Matchers::WithinAbs(0.0, 5e-3));  // Relaxed to match solver tolerance
 }
 
+TEST_CASE("IK Solver: Reachable target with random restart", "[ik][random_restart]") {
+    Robot robot = create_2r_planar_for_ik();
+    IKSolver solver(robot);
+
+    // For 2R planar robot, use position-only mode
+    solver.set_mode(IKMode::POSITION_ONLY);
+    solver.set_position_tolerance(1e-3);
+
+    // Enable random restart strategy
+    solver.set_use_random_restart(true);
+    solver.set_max_searches(20);
+    solver.set_max_iterations(100);
+
+    // Same target that fails without random restart
+    SE3 T_target = SE3::Identity();
+    T_target.translation() << 1.0, 0.5, 0.0;
+
+    Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
+    IKResult result = solver.solve(T_target, q_seed);
+
+    REQUIRE(result.success);
+    REQUIRE(result.searches > 0);  // Should report number of searches
+
+    // Verify the solution
+    SE3 T_result = robot.fk(result.q_solution);
+    Eigen::Vector3d pos_diff = T_result.translation() - T_target.translation();
+
+    REQUIRE_THAT(pos_diff.norm(), Catch::Matchers::WithinAbs(0.0, 5e-3));
+}
+
 TEST_CASE("IK Solver: Unreachable target (too far)", "[ik][unreachable]") {
     Robot robot = create_2r_planar_for_ik();
     IKSolver solver(robot);
