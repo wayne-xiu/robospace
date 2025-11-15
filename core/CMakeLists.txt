@@ -77,10 +77,12 @@ set_target_properties(robospace-model PROPERTIES
 # Kinematics module
 set(KINEMATICS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/kinematics/ik_solver.cpp
+    ${CMAKE_SOURCE_DIR}/src/kinematics/numerical_ik.cpp
 )
 
 set(KINEMATICS_HEADERS
     ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/ik_solver.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/numerical_ik.hpp
 )
 
 add_library(robospace-kinematics ${KINEMATICS_SOURCES} ${KINEMATICS_HEADERS})

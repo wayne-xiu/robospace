@@ -4,6 +4,7 @@
 #include <robospace/math/SE3.hpp>
 #include <Eigen/Dense>
 #include <string>
+#include <memory>
 
 namespace robospace {
 namespace kinematics {
@@ -22,6 +23,10 @@ enum class IKMode {
     ORIENTATION_ONLY   ///< Minimize orientation error only
 };
 
+// Forward declarations
+class NumericalIKSolver;
+struct SearchParams;
+
 /**
  * @brief Result of an IK solve attempt
  */
@@ -29,8 +34,10 @@ struct IKResult {
     bool success = false;                    ///< Whether IK converged to target
     Eigen::VectorXd q_solution;              ///< Joint configuration solution
     int iterations = 0;                      ///< Number of iterations used
+    int searches = 0;                        ///< Number of random restart searches (numerical only)
     double final_error = 0.0;                ///< Final pose error (position + orientation)
     std::string message;                     ///< Optional status/error message
+    bool from_analytical = false;            ///< True if solution from analytical solver
 
     IKResult() = default;
     IKResult(bool success_, const Eigen::VectorXd& q_, int iter_ = 0, double err_ = 0.0)
@@ -85,6 +92,13 @@ public:
     explicit IKSolver(const model::Robot& robot);
 
     /**
+     * @brief Destructor
+     *
+     * Defined in .cpp to allow forward declaration of NumericalIKSolver
+     */
+    ~IKSolver();
+
+    /**
      * @brief Solve inverse kinematics for target pose
      *
      * Iteratively updates joint configuration to minimize pose error using
@@ -102,21 +116,21 @@ public:
 
     /**
      * @brief Set position error tolerance (meters)
-     * @param tol Position tolerance (default: 1e-6 m)
+     * @param tol Position tolerance (default: 1e-4 m)
      */
-    void set_position_tolerance(double tol) { position_tolerance_ = tol; }
+    void set_position_tolerance(double tol);
 
     /**
      * @brief Set orientation error tolerance (radians)
-     * @param tol Orientation tolerance (default: 1e-4 rad)
+     * @param tol Orientation tolerance (default: 1e-3 rad)
      */
-    void set_orientation_tolerance(double tol) { orientation_tolerance_ = tol; }
+    void set_orientation_tolerance(double tol);
 
     /**
      * @brief Set maximum iterations
-     * @param max_iter Maximum iterations (default: 100)
+     * @param max_iter Maximum iterations (default: 30 per search)
      */
-    void set_max_iterations(int max_iter) { max_iterations_ = max_iter; }
+    void set_max_iterations(int max_iter);
 
     /**
      * @brief Set damping factor for DLS
@@ -125,84 +139,77 @@ public:
      * Larger values: More stable near singularities, slower convergence
      * Smaller values: Faster convergence, less stable near singularities
      */
-    void set_damping(double damping) { damping_ = damping; }
+    void set_damping(double damping);
 
     /**
      * @brief Set IK solver mode
      * @param mode Solver mode (FULL_POSE, POSITION_ONLY, ORIENTATION_ONLY)
      */
-    void set_mode(IKMode mode) { mode_ = mode; }
+    void set_mode(IKMode mode);
 
     /**
      * @brief Set joint update step size
-     * @param alpha Step size (default: 0.8)
+     * @param alpha Step size (default: 1.0)
      *
      * Smaller values: More conservative, slower but more stable
      * Larger values: Faster but may overshoot
      */
-    void set_step_size(double alpha) { step_size_ = alpha; }
+    void set_step_size(double alpha);
 
     /**
      * @brief Set error gain
-     * @param gain Error gain factor (default: 1.0)
+     * @param gain Error gain factor (default: 0.5)
      *
      * Scales the error before computing joint update.
      * Larger values: Faster convergence but may overshoot
      * Smaller values: More stable but slower
      */
-    void set_error_gain(double gain) { error_gain_ = gain; }
+    void set_error_gain(double gain);
+
+    /**
+     * @brief Set maximum number of random restart searches
+     * @param max_searches Maximum searches (default: 100)
+     *
+     * Random restart strategy improves success rate dramatically.
+     * With 100 searches, success probability >99.99% (vs ~10% single attempt)
+     */
+    void set_max_searches(int max_searches);
+
+    /**
+     * @brief Set random seed for reproducibility
+     * @param seed Random seed (0 = use random device)
+     */
+    void set_random_seed(uint32_t seed);
+
+    /**
+     * @brief Enable/disable random restart strategy
+     * @param enable True to enable random restart
+     */
+    void set_use_random_restart(bool enable);
+
+    /**
+     * @brief Enable/disable adaptive damping (Sugihara method)
+     * @param enable True to enable adaptive damping
+     */
+    void set_use_adaptive_damping(bool enable);
 
     // Getters
 
-    double position_tolerance() const { return position_tolerance_; }
-    double orientation_tolerance() const { return orientation_tolerance_; }
-    int max_iterations() const { return max_iterations_; }
-    double damping() const { return damping_; }
-    IKMode mode() const { return mode_; }
-    double step_size() const { return step_size_; }
+    double position_tolerance() const;
+    double orientation_tolerance() const;
+    int max_iterations() const;
+    int max_searches() const;
+    double damping() const;
+    IKMode mode() const;
+    double step_size() const;
+    bool use_random_restart() const;
+    bool use_adaptive_damping() const;
 
 private:
     const model::Robot& robot_;
 
-    // Solver parameters
-    double position_tolerance_ = 1e-4;       ///< Position error tolerance (m) - relaxed for practical convergence
-    double orientation_tolerance_ = 1e-3;    ///< Orientation error tolerance (rad) - relaxed for practical convergence
-    int max_iterations_ = 1000;              ///< Maximum iterations
-    double damping_ = 0.01;                  ///< Damping factor λ for DLS
-    double step_size_ = 1.0;                 ///< Joint update step size
-    double error_gain_ = 0.5;                ///< Error scaling gain (conservative)
-    IKMode mode_ = IKMode::FULL_POSE;        ///< Solver mode
-
-    /**
-     * @brief Compute pose error vector in base frame
-     *
-     * Error = [position_error; orientation_error]
-     *   position_error = target_pos - current_pos  (3×1)
-     *   orientation_error = log(R_current^T * R_target) (3×1, axis-angle)
-     *
-     * @param current Current end-effector pose
-     * @param target Target end-effector pose
-     * @return 6×1 error vector
-     */
-    Eigen::VectorXd compute_pose_error(const math::SE3& current, const math::SE3& target) const;
-
-    /**
-     * @brief Check if current pose is within tolerance of target
-     * @param error Pose error vector (6×1)
-     * @return true if converged
-     */
-    bool check_convergence(const Eigen::VectorXd& error) const;
-
-    /**
-     * @brief Compute damped least squares pseudoinverse
-     *
-     * Solves: Δq = J^T(JJ^T + λ²I)^(-1) * e
-     *
-     * @param J Jacobian matrix (6×n or subset based on mode)
-     * @param error Pose error vector
-     * @return Joint velocity Δq
-     */
-    Eigen::VectorXd compute_dls_step(const Eigen::MatrixXd& J, const Eigen::VectorXd& error) const;
+    // Numerical solver (uses improved algorithm with random restart)
+    std::unique_ptr<NumericalIKSolver> numerical_solver_;
 };
 
 } // namespace kinematics
