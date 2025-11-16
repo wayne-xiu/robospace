@@ -1,6 +1,7 @@
 #include <robospace/kinematics/ik_solver.hpp>
 #include <robospace/kinematics/numerical_ik.hpp>
 #include <robospace/kinematics/analytical_ik_base.hpp>
+#include <robospace/kinematics/spherical_wrist_ik.hpp>
 
 namespace robospace {
 namespace kinematics {
@@ -241,12 +242,22 @@ bool IKSolver::use_adaptive_damping() const {
 
 std::unique_ptr<AnalyticalIKSolver> IKSolver::create_analytical_solver() {
     // Auto-detect analytical solver for robot
-    // TODO: Implement detection for:
-    // - Spherical wrist robots (Step 3)
-    // - OPW kinematics (Step 4)
-    // - Other patterns
 
-    // For now, no analytical solvers implemented
+    // Try spherical wrist solver (most common industrial robot pattern)
+    try {
+        auto spherical_solver = std::make_unique<SphericalWristIK>(robot_);
+        if (spherical_solver->supports_robot(robot_)) {
+            return spherical_solver;
+        }
+    } catch (const std::exception&) {
+        // Not a spherical wrist robot, continue checking
+    }
+
+    // TODO: Try other patterns:
+    // - OPW kinematics
+    // - Other specialized solvers
+
+    // No analytical solver available
     return nullptr;
 }
 
