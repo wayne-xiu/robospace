@@ -45,6 +45,10 @@ public:
     const DHParams& dh_params() const { return dh_params_; }
     bool has_dh_params() const { return has_dh_; }
 
+    void precompute_dh_se3();
+    bool has_dh_se3() const { return has_dh_se3_; }
+    const math::SE3& dh_se3_base() const { return dh_se3_base_; }
+
     void set_origin(const math::SE3& origin) { origin_ = origin; }
     void set_axis(const Eigen::Vector3d& axis) { axis_ = axis.normalized(); }
     const math::SE3& origin() const { return origin_; }
@@ -137,6 +141,9 @@ private:
 
     Eigen::Vector<double, 6> screw_axis_;  // Modern Robotics screw axis
     bool has_screw_ = false;
+
+    math::SE3 dh_se3_base_;
+    bool has_dh_se3_ = false;
 
     // Axis direction and coupling ("Joint Senses")
     int axis_direction_ = 1;  // ±1 for normal/inverted axis

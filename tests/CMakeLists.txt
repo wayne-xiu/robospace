@@ -31,6 +31,9 @@ add_executable(robospace-tests
     cpp/test_inverse_kinematics.cpp
     cpp/test_ik_ur5.cpp
     cpp/test_fk_validation.cpp
+    cpp/test_dh_adapter.cpp
+    cpp/test_joint_se3_storage.cpp
+    cpp/bench_phase1_baseline.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE

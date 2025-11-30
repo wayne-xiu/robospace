@@ -9,7 +9,9 @@ void KinematicTree::add_link(const Link& link) {
 }
 
 void KinematicTree::add_joint(const Joint& joint) {
-    joints_.push_back(joint);
+    Joint joint_copy = joint;
+    joint_copy.precompute_dh_se3();
+    joints_.push_back(joint_copy);
 }
 
 void KinematicTree::set_configuration(const Eigen::VectorXd& q) {

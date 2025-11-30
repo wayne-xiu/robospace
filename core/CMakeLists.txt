@@ -37,6 +37,7 @@ set_target_properties(robospace-math PROPERTIES
 set(MODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/model/entity.cpp
     ${CMAKE_SOURCE_DIR}/src/model/dh_params.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/dh_adapter.cpp
     ${CMAKE_SOURCE_DIR}/src/model/joint.cpp
     ${CMAKE_SOURCE_DIR}/src/model/link.cpp
     ${CMAKE_SOURCE_DIR}/src/model/frame.cpp
@@ -50,6 +51,7 @@ set(MODEL_SOURCES
 set(MODEL_HEADERS
     ${CMAKE_SOURCE_DIR}/include/robospace/model/entity.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/dh_params.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/dh_adapter.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/joint.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/link.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/frame.hpp

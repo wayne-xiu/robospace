@@ -1,4 +1,5 @@
 #include <robospace/model/joint.hpp>
+#include <robospace/model/dh_adapter.hpp>
 #include <robospace/math/SO3.hpp>
 
 namespace robospace {
@@ -20,6 +21,15 @@ Joint::Joint(const std::string& name, JointType type,
         lower_limit_ = -1.0;  // Default: -1m to 1m
         upper_limit_ = 1.0;
     }
+}
+
+void Joint::precompute_dh_se3() {
+    if (!has_dh_) {
+        return;
+    }
+
+    dh_se3_base_ = DHAdapter::convert(dh_params_, 0.0, is_prismatic());
+    has_dh_se3_ = true;
 }
 
 math::SE3 Joint::transform(double q) const {
