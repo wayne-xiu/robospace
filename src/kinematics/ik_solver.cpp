@@ -1,171 +1,264 @@
 #include <robospace/kinematics/ik_solver.hpp>
-#include <robospace/math/SO3.hpp>
-#include <cmath>
-#include <stdexcept>
+#include <robospace/kinematics/numerical_ik.hpp>
+#include <robospace/kinematics/analytical_ik_base.hpp>
+#include <robospace/kinematics/spherical_wrist_ik.hpp>
 
 namespace robospace {
 namespace kinematics {
 
 IKSolver::IKSolver(const model::Robot& robot)
-    : robot_(robot) {
+    : robot_(robot),
+      numerical_solver_(std::make_unique<NumericalIKSolver>(robot)),
+      analytical_solver_(create_analytical_solver()) {
 }
 
-IKResult IKSolver::solve(const math::SE3& target_pose, const Eigen::VectorXd& q_seed) {
-    const int dof = robot_.dof();
+IKSolver::~IKSolver() = default;
 
-    // Validate seed configuration
-    if (q_seed.size() != dof) {
-        throw std::invalid_argument(
-            "Seed configuration size mismatch: expected " +
-            std::to_string(dof) + " values, got " +
-            std::to_string(q_seed.size()));
+// ========== PRIMARY SOLVE METHODS ==========
+
+IKResult IKSolver::solve(const math::SE3& target_pose, const Eigen::VectorXd& q_seed) {
+    // AUTO mode: try analytical first, fallback to numerical
+    if (solver_mode_ == SolverMode::AUTO) {
+        if (analytical_solver_) {
+            // Use analytical solver
+            AnalyticalIKSolution analytical_sol = analytical_solver_->solve(target_pose, q_seed);
+
+            if (analytical_sol.valid) {
+                IKResult result;
+                result.success = true;
+                result.q_solution = analytical_sol.q;
+                result.from_analytical = true;
+                result.iterations = 0;
+                result.message = "Analytical IK solution";
+                return result;
+            }
+            // Analytical failed, fall through to numerical
+        }
+
+        // No analytical solver or it failed - use numerical
+        return numerical_solver_->solve(target_pose, q_seed);
     }
 
-    // Initialize solution with seed
-    Eigen::VectorXd q = q_seed;
-
-    IKResult result;
-    result.q_solution = q;
-    result.success = false;
-    result.iterations = 0;
-
-    // Iterative IK loop
-    for (int iter = 0; iter < max_iterations_; ++iter) {
-        result.iterations = iter + 1;
-
-        // Compute current end-effector pose
-        math::SE3 current_pose = robot_.fk(q);
-
-        // Compute pose error
-        Eigen::VectorXd error = compute_pose_error(current_pose, target_pose);
-
-        // Check convergence
-        if (check_convergence(error)) {
-            result.success = true;
-            result.q_solution = q;
-            result.final_error = error.norm();
-            result.message = "IK converged successfully";
+    // ANALYTICAL mode: analytical only
+    if (solver_mode_ == SolverMode::ANALYTICAL) {
+        if (!analytical_solver_) {
+            IKResult result;
+            result.success = false;
+            result.message = "Analytical solver not available for this robot";
             return result;
         }
 
-        // Compute Jacobian in base frame
-        Eigen::MatrixXd J = robot_.jacob0(q);
+        AnalyticalIKSolution analytical_sol = analytical_solver_->solve(target_pose, q_seed);
 
-        // Select relevant rows based on mode
-        Eigen::MatrixXd J_reduced;
-        Eigen::VectorXd error_reduced;
-
-        switch (mode_) {
-            case IKMode::POSITION_ONLY:
-                // Use only position rows (0:3)
-                J_reduced = J.topRows(3);
-                error_reduced = error.head(3);
-                break;
-
-            case IKMode::ORIENTATION_ONLY:
-                // Use only orientation rows (3:6)
-                J_reduced = J.bottomRows(3);
-                error_reduced = error.tail(3);
-                break;
-
-            case IKMode::FULL_POSE:
-            default:
-                // Use all 6 rows
-                J_reduced = J;
-                error_reduced = error;
-                break;
-        }
-
-        // Compute damped least squares step
-        Eigen::VectorXd dq = compute_dls_step(J_reduced, error_reduced);
-
-        // Update joint configuration with step size
-        q += step_size_ * dq;
-
-        // Store current error
-        result.final_error = error.norm();
+        IKResult result;
+        result.success = analytical_sol.valid;
+        result.q_solution = analytical_sol.q;
+        result.from_analytical = true;
+        result.iterations = 0;
+        result.message = analytical_sol.valid ? "Analytical IK solution" : analytical_sol.failure_reason;
+        return result;
     }
 
-    // Max iterations reached without convergence
-    result.success = false;
-    result.q_solution = q;
-    result.message = "IK failed to converge within max iterations";
+    // NUMERICAL mode: numerical only
+    return numerical_solver_->solve(target_pose, q_seed);
+}
+
+std::vector<IKResult> IKSolver::solve_all(const math::SE3& target_pose) {
+    std::vector<IKResult> results;
+
+    if (!analytical_solver_) {
+        // No analytical solver available
+        return results;
+    }
+
+    // Get all analytical solutions
+    std::vector<AnalyticalIKSolution> analytical_solutions = analytical_solver_->solve_all(target_pose);
+
+    // Convert to IKResult format
+    for (const auto& sol : analytical_solutions) {
+        if (sol.valid) {
+            IKResult result;
+            result.success = true;
+            result.q_solution = sol.q;
+            result.from_analytical = true;
+            result.iterations = 0;
+            result.message = "Analytical IK solution";
+            results.push_back(result);
+        }
+    }
+
+    return results;
+}
+
+IKResult IKSolver::solve(const math::SE3& target_pose,
+                         const Eigen::VectorXd& q_seed,
+                         const IKConfiguration& preferred) {
+
+    if (!analytical_solver_) {
+        // No analytical solver - use numerical
+        return numerical_solver_->solve(target_pose, q_seed);
+    }
+
+    // Use analytical solver with configuration preference
+    AnalyticalIKSolution analytical_sol = analytical_solver_->solve(target_pose, preferred);
+
+    IKResult result;
+    result.success = analytical_sol.valid;
+    result.q_solution = analytical_sol.q;
+    result.from_analytical = true;
+    result.iterations = 0;
+    result.message = analytical_sol.valid ? "Analytical IK solution" : analytical_sol.failure_reason;
 
     return result;
 }
 
-Eigen::VectorXd IKSolver::compute_pose_error(
-    const math::SE3& current,
-    const math::SE3& target) const {
+// ========== CONFIGURATION METHODS ==========
 
-    Eigen::VectorXd error(6);
-
-    // Position error: target - current (in base frame)
-    Eigen::Vector3d position_error = target.translation() - current.translation();
-    error.head(3) = position_error;
-
-    // Orientation error using axis-angle representation
-    // Compute relative rotation: R_error = R_current^T * R_target
-    Eigen::Matrix3d R_current = current.rotation();
-    Eigen::Matrix3d R_target = target.rotation();
-    Eigen::Matrix3d R_error = R_current.transpose() * R_target;
-
-    // Convert rotation matrix to SO3 and extract axis-angle
-    math::SO3 so3_error(R_error);
-    math::so3 orientation_error_log = math::log_SO3(so3_error);
-
-    // Rotate orientation error to base frame
-    Eigen::Vector3d orientation_error = R_current * orientation_error_log.vector();
-    error.tail(3) = orientation_error;
-
-    return error;
+void IKSolver::set_position_tolerance(double tol) {
+    numerical_solver_->set_position_tolerance(tol);
 }
 
-bool IKSolver::check_convergence(const Eigen::VectorXd& error) const {
-    // Extract position and orientation errors
-    const Eigen::Vector3d pos_error = error.head(3);
-    const Eigen::Vector3d ori_error = error.tail(3);
+void IKSolver::set_orientation_tolerance(double tol) {
+    numerical_solver_->set_orientation_tolerance(tol);
+}
 
-    const double pos_norm = pos_error.norm();
-    const double ori_norm = ori_error.norm();
+void IKSolver::set_max_iterations(int max_iter) {
+    auto params = numerical_solver_->search_params();
+    params.max_iterations = max_iter;
+    numerical_solver_->set_search_params(params);
+}
 
-    // Check based on mode
-    switch (mode_) {
-        case IKMode::POSITION_ONLY:
-            return pos_norm < position_tolerance_;
+void IKSolver::set_damping(double damping) {
+    numerical_solver_->set_damping(damping);
+}
 
-        case IKMode::ORIENTATION_ONLY:
-            return ori_norm < orientation_tolerance_;
+void IKSolver::set_mode(IKMode mode) {
+    numerical_solver_->set_mode(mode);
+}
 
-        case IKMode::FULL_POSE:
-        default:
-            return (pos_norm < position_tolerance_) &&
-                   (ori_norm < orientation_tolerance_);
+void IKSolver::set_step_size(double alpha) {
+    numerical_solver_->set_step_size(alpha);
+}
+
+void IKSolver::set_error_gain(double gain) {
+    numerical_solver_->set_error_gain(gain);
+}
+
+void IKSolver::set_max_searches(int max_searches) {
+    auto params = numerical_solver_->search_params();
+    params.max_searches = max_searches;
+    numerical_solver_->set_search_params(params);
+}
+
+void IKSolver::set_random_seed(uint32_t seed) {
+    auto params = numerical_solver_->search_params();
+    params.seed = seed;
+    numerical_solver_->set_search_params(params);
+}
+
+void IKSolver::set_use_random_restart(bool enable) {
+    auto params = numerical_solver_->search_params();
+    params.use_random_restart = enable;
+    numerical_solver_->set_search_params(params);
+}
+
+void IKSolver::set_use_adaptive_damping(bool enable) {
+    auto params = numerical_solver_->search_params();
+    params.use_adaptive_damping = enable;
+    numerical_solver_->set_search_params(params);
+}
+
+void IKSolver::set_solver_mode(SolverMode mode) {
+    solver_mode_ = mode;
+}
+
+void IKSolver::register_analytical_solver(std::unique_ptr<AnalyticalIKSolver> solver) {
+    analytical_solver_ = std::move(solver);
+}
+
+// ========== QUERY METHODS ==========
+
+bool IKSolver::has_analytical_solver() const {
+    return analytical_solver_ != nullptr;
+}
+
+std::string IKSolver::analytical_solver_name() const {
+    if (analytical_solver_) {
+        return analytical_solver_->solver_name();
     }
+    return "none";
 }
 
-Eigen::VectorXd IKSolver::compute_dls_step(
-    const Eigen::MatrixXd& J,
-    const Eigen::VectorXd& error) const {
+int IKSolver::max_analytical_solutions() const {
+    if (analytical_solver_) {
+        return analytical_solver_->max_solutions();
+    }
+    return 0;
+}
 
-    const int m = J.rows();  // Task space dimension (3 or 6)
+IKSolver::SolverMode IKSolver::solver_mode() const {
+    return solver_mode_;
+}
 
-    // Damped Least Squares (Levenberg-Marquardt):
-    // Δq = J^T(JJ^T + λ²I)^(-1) * e
-    //
-    // This is more stable than pseudoinverse near singularities
+// ========== NUMERICAL SOLVER GETTERS ==========
 
-    // Compute JJ^T + λ²I
-    Eigen::MatrixXd JJT = J * J.transpose();
-    Eigen::MatrixXd A = JJT + damping_ * damping_ * Eigen::MatrixXd::Identity(m, m);
+double IKSolver::position_tolerance() const {
+    return numerical_solver_->position_tolerance();
+}
 
-    // Solve: (JJ^T + λ²I) * y = e
-    Eigen::VectorXd y = A.ldlt().solve(error);
+double IKSolver::orientation_tolerance() const {
+    return numerical_solver_->orientation_tolerance();
+}
 
-    // Compute: Δq = J^T * y
-    Eigen::VectorXd dq = J.transpose() * y;
+int IKSolver::max_iterations() const {
+    return numerical_solver_->search_params().max_iterations;
+}
 
-    return dq;
+int IKSolver::max_searches() const {
+    return numerical_solver_->search_params().max_searches;
+}
+
+double IKSolver::damping() const {
+    return numerical_solver_->damping();
+}
+
+IKMode IKSolver::mode() const {
+    return numerical_solver_->mode();
+}
+
+double IKSolver::step_size() const {
+    return numerical_solver_->step_size();
+}
+
+bool IKSolver::use_random_restart() const {
+    return numerical_solver_->search_params().use_random_restart;
+}
+
+bool IKSolver::use_adaptive_damping() const {
+    return numerical_solver_->search_params().use_adaptive_damping;
+}
+
+// ========== PRIVATE METHODS ==========
+
+std::unique_ptr<AnalyticalIKSolver> IKSolver::create_analytical_solver() {
+    // Auto-detect analytical solver for robot
+
+    // Try spherical wrist solver (most common industrial robot pattern)
+    try {
+        auto spherical_solver = std::make_unique<SphericalWristIK>(robot_);
+        if (spherical_solver->supports_robot(robot_)) {
+            return spherical_solver;
+        }
+    } catch (const std::exception&) {
+        // Not a spherical wrist robot, continue checking
+    }
+
+    // TODO: Try other patterns:
+    // - OPW kinematics
+    // - Other specialized solvers
+
+    // No analytical solver available
+    return nullptr;
 }
 
 } // namespace kinematics

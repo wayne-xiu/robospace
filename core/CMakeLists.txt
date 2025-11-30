@@ -44,6 +44,7 @@ set(MODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/model/tool.cpp
     ${CMAKE_SOURCE_DIR}/src/model/robot.cpp
     ${CMAKE_SOURCE_DIR}/src/model/urdf_parser.cpp
+    ${CMAKE_SOURCE_DIR}/src/model/json_loader.cpp
 )
 
 set(MODEL_HEADERS
@@ -56,6 +57,7 @@ set(MODEL_HEADERS
     ${CMAKE_SOURCE_DIR}/include/robospace/model/tool.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/robot.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/model/urdf_parser.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/model/json_loader.hpp
 )
 
 add_library(robospace-model ${MODEL_SOURCES} ${MODEL_HEADERS})
@@ -67,6 +69,7 @@ target_link_libraries(robospace-model PUBLIC
     Eigen3::Eigen
     robospace-math
     tinyxml2
+    nlohmann_json::nlohmann_json
 )
 set_target_properties(robospace-model PROPERTIES
     CXX_STANDARD 17
@@ -77,10 +80,16 @@ set_target_properties(robospace-model PROPERTIES
 # Kinematics module
 set(KINEMATICS_SOURCES
     ${CMAKE_SOURCE_DIR}/src/kinematics/ik_solver.cpp
+    ${CMAKE_SOURCE_DIR}/src/kinematics/numerical_ik.cpp
+    ${CMAKE_SOURCE_DIR}/src/kinematics/analytical_ik_base.cpp
+    ${CMAKE_SOURCE_DIR}/src/kinematics/spherical_wrist_ik.cpp
 )
 
 set(KINEMATICS_HEADERS
     ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/ik_solver.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/numerical_ik.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/analytical_ik_base.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/kinematics/spherical_wrist_ik.hpp
 )
 
 add_library(robospace-kinematics ${KINEMATICS_SOURCES} ${KINEMATICS_HEADERS})

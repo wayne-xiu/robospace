@@ -28,6 +28,7 @@ Robot create_2r_planar() {
 }
 
 // Analytical Jacobian for 2R planar robot
+// Convention: rows 0-2 = angular (ω), rows 3-5 = linear (v)
 Eigen::MatrixXd analytical_jacob0_2r(double q1, double q2) {
     const double L1 = 1.0;
     const double L2 = 0.8;
@@ -40,12 +41,15 @@ Eigen::MatrixXd analytical_jacob0_2r(double q1, double q2) {
     double c12 = std::cos(q1 + q2);
     double s12 = std::sin(q1 + q2);
 
-    J(0, 0) = -L1 * s1 - L2 * s12;
-    J(0, 1) = -L2 * s12;
-    J(1, 0) = L1 * c1 + L2 * c12;
-    J(1, 1) = L2 * c12;
-    J(5, 0) = 1.0;
-    J(5, 1) = 1.0;
+    // Angular velocity (Z-axis for planar robot)
+    J(2, 0) = 1.0;
+    J(2, 1) = 1.0;
+
+    // Linear velocity (X, Y)
+    J(3, 0) = -L1 * s1 - L2 * s12;
+    J(3, 1) = -L2 * s12;
+    J(4, 0) = L1 * c1 + L2 * c12;
+    J(4, 1) = L2 * c12;
 
     return J;
 }
@@ -162,8 +166,15 @@ TEST_CASE("Jacobian: jacobe at zero configuration", "[jacobian][jacobe]") {
     Eigen::MatrixXd J0 = robot.jacob0(q);
     Eigen::MatrixXd Je = robot.jacobe(q);
 
-    // At zero config, rotation is identity, so J0 ≈ Je
-    REQUIRE(Je.isApprox(J0, 1e-10));
+    // Verify dimensions
+    REQUIRE(Je.rows() == 6);
+    REQUIRE(Je.cols() == 2);
+
+    // Verify angular parts are same (R = I at zero config)
+    REQUIRE(Je.block<3, 2>(0, 0).isApprox(J0.block<3, 2>(0, 0), 1e-10));
+
+    // Linear parts differ due to [p]× term in adjoint (p = [1.8, 0, 0] for 2R)
+    // Je = Ad_{T^-1} * J0 where Ad has [p]× in bottom-left block
 }
 
 TEST_CASE("Jacobian: Empty robot", "[jacobian][edge]") {
@@ -210,15 +221,15 @@ TEST_CASE("Jacobian 3DOF: Mixed revolute-prismatic", "[jacobian][3dof]") {
     REQUIRE(J.cols() == 3);
 
     // Column 1: revolute - should have angular velocity
-    REQUIRE(std::abs(J(5, 0)) > 0.5);
+    REQUIRE(std::abs(J(2, 0)) > 0.5);
 
     // Column 2: prismatic - should have zero angular velocity
-    REQUIRE_THAT(J(3, 1), Catch::Matchers::WithinAbs(0.0, 1e-10));
-    REQUIRE_THAT(J(4, 1), Catch::Matchers::WithinAbs(0.0, 1e-10));
-    REQUIRE_THAT(J(5, 1), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(J(0, 1), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(J(1, 1), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(J(2, 1), Catch::Matchers::WithinAbs(0.0, 1e-10));
 
     // Column 3: revolute - should have non-zero angular velocity component
-    double omega_norm = std::sqrt(J(3, 2)*J(3, 2) + J(4, 2)*J(4, 2) + J(5, 2)*J(5, 2));
+    double omega_norm = std::sqrt(J(0, 2)*J(0, 2) + J(1, 2)*J(1, 2) + J(2, 2)*J(2, 2));
     REQUIRE(omega_norm > 0.5);
 }
 
@@ -253,4 +264,34 @@ TEST_CASE("Jacobian: Verify numerical stability", "[jacobian][stability]") {
     Eigen::MatrixXd J2 = robot.jacob0(q);
 
     REQUIRE(J1.isApprox(J2, 1e-9));
+}
+
+TEST_CASE("Jacobian: Non-Z axis joint (URDF-style)", "[jacobian][urdf]") {
+    // Create a robot with a Y-axis revolute joint
+    Robot robot("Y_axis_robot");
+    robot.add_link(Link("base"));
+    robot.add_link(Link("link1"));
+
+    // Joint rotating about Y-axis (not Z)
+    Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
+    joint1.set_origin(SE3::Translation(Eigen::Vector3d(0, 0, 0.5)));
+    joint1.set_axis(Eigen::Vector3d::UnitY());  // Y-axis rotation
+    robot.add_joint(joint1);
+
+    Eigen::VectorXd q(1);
+    q << M_PI / 4;  // 45 degrees
+
+    Eigen::MatrixXd J = robot.jacob0(q);
+
+    REQUIRE(J.rows() == 6);
+    REQUIRE(J.cols() == 1);
+
+    // Angular velocity should be along Y-axis in base frame
+    // R(Y, q) * [0,1,0] = [0,1,0] (Y-axis is invariant under Y rotations)
+    REQUIRE_THAT(J(0, 0), Catch::Matchers::WithinAbs(0.0, 1e-10));
+    REQUIRE_THAT(J(1, 0), Catch::Matchers::WithinAbs(1.0, 1e-10));
+    REQUIRE_THAT(J(2, 0), Catch::Matchers::WithinAbs(0.0, 1e-10));
+
+    // Verify this is different from Z-axis default (would be [0,0,1])
+    // This proves we're using joint.axis() and not hardcoded col(2)
 }
