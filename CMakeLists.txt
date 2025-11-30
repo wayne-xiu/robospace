@@ -50,6 +50,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tinyxml2)
 set_target_properties(tinyxml2 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# nlohmann_json (for JSON parsing)
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+)
+FetchContent_MakeAvailable(json)
+
 # pybind11 (for Python bindings)
 if(BUILD_PYTHON)
     FetchContent_Declare(

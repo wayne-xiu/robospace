@@ -96,57 +96,91 @@ math::SE3 KinematicTree::compute_link_pose(const Eigen::VectorXd& q, int link_id
     return pose;
 }
 
-Eigen::MatrixXd KinematicTree::compute_jacobian_base(const Eigen::VectorXd& q) const {
-    if (q.size() != num_joints()) {
-        throw std::invalid_argument("Configuration size mismatch");
-    }
+Eigen::MatrixXd KinematicTree::compute_jacobian_base_impl(const Eigen::VectorXd& q, const std::vector<math::SE3>& poses) const {
     if (num_joints() == 0) {
         return Eigen::MatrixXd::Zero(6, 0);
     }
 
-    const int n = num_joints();
-    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, n);
+    std::vector<int> active_indices;
+    for (int i = 0; i < num_joints(); ++i) {
+        if (!joints_[i].is_fixed()) {
+            active_indices.push_back(i);
+        }
+    }
 
-    std::vector<math::SE3> poses = compute_forward_kinematics(q);
+    const int n_dof = static_cast<int>(active_indices.size());
+    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, n_dof);
+
     math::SE3 T_ee = poses.back();
     Eigen::Vector3d p_ee = T_ee.translation();
 
-    for (int i = 0; i < n; ++i) {
-        math::SE3 T_i = poses[i];
-        Eigen::Vector3d p_i = T_i.translation();
-        Eigen::Vector3d z_i = T_i.rotation().col(2);
+    for (int col = 0; col < n_dof; ++col) {
+        int i = active_indices[col];
+        math::SE3 T_joint = poses[i] * joints_[i].origin();
+        Eigen::Vector3d p_joint = T_joint.translation();
+        Eigen::Vector3d z_i = T_joint.rotation() * joints_[i].axis();
 
         if (joints_[i].is_revolute()) {
-            J.block<3, 1>(0, i) = z_i.cross(p_ee - p_i);
-            J.block<3, 1>(3, i) = z_i;
+            J.block<3, 1>(0, col) = z_i;
+            J.block<3, 1>(3, col) = z_i.cross(p_ee - p_joint);
         } else if (joints_[i].is_prismatic()) {
-            J.block<3, 1>(0, i) = z_i;
-            J.block<3, 1>(3, i) = Eigen::Vector3d::Zero();
+            J.block<3, 1>(0, col) = Eigen::Vector3d::Zero();
+            J.block<3, 1>(3, col) = z_i;
+        }
+    }
+
+    // Save geometric Jacobian for chain rule
+    const Eigen::MatrixXd J_geo = J;
+
+    std::unordered_map<int, int> joint_to_col;
+    for (int col = 0; col < n_dof; ++col) {
+        joint_to_col[active_indices[col]] = col;
+    }
+
+    for (int col = 0; col < n_dof; ++col) {
+        int i = active_indices[col];
+        J.col(col) = J_geo.col(col) * joints_[i].axis_direction();
+    }
+
+    for (int col_b = 0; col_b < n_dof; ++col_b) {
+        int joint_b = active_indices[col_b];
+        const auto& coupling_terms = joints_[joint_b].coupling_terms();
+
+        for (const auto& term : coupling_terms) {
+            auto it = joint_to_col.find(term.from_joint_id);
+            if (it != joint_to_col.end()) {
+                int col_a = it->second;
+                J.col(col_a) += J_geo.col(col_b) * term.coefficient;
+            }
         }
     }
 
     return J;
 }
 
-Eigen::MatrixXd KinematicTree::compute_jacobian_ee(const Eigen::VectorXd& q) const {
-    Eigen::MatrixXd J0 = compute_jacobian_base(q);
-
-    if (num_joints() == 0) {
-        return J0;
+Eigen::MatrixXd KinematicTree::compute_jacobian_base(const Eigen::VectorXd& q) const {
+    if (q.size() != num_joints()) {
+        throw std::invalid_argument("Configuration size mismatch");
     }
 
     std::vector<math::SE3> poses = compute_forward_kinematics(q);
+    return compute_jacobian_base_impl(q, poses);
+}
+
+Eigen::MatrixXd KinematicTree::compute_jacobian_ee(const Eigen::VectorXd& q) const {
+    if (q.size() != num_joints()) {
+        throw std::invalid_argument("Configuration size mismatch");
+    }
+
+    if (num_joints() == 0) {
+        return Eigen::MatrixXd::Zero(6, 0);
+    }
+
+    std::vector<math::SE3> poses = compute_forward_kinematics(q);
+    Eigen::MatrixXd J_base = compute_jacobian_base_impl(q, poses);
+
     math::SE3 T_ee = poses.back();
-
-    Eigen::Matrix3d R_ee = T_ee.rotation();
-    Eigen::Matrix3d R_ee_T = R_ee.transpose();
-
-    Eigen::MatrixXd Ad_inv(6, 6);
-    Ad_inv.setZero();
-    Ad_inv.block<3, 3>(0, 0) = R_ee_T;
-    Ad_inv.block<3, 3>(3, 3) = R_ee_T;
-
-    return Ad_inv * J0;
+    return T_ee.inverse().adjoint() * J_base;
 }
 
 } // namespace model

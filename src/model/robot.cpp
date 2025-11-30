@@ -109,11 +109,19 @@ std::vector<math::SE3> Robot::fk_all() const {
 
 // Differential kinematics
 Eigen::MatrixXd Robot::jacob0(const Eigen::VectorXd& q) const {
-    return tree_.compute_jacobian_base(q);
+    Eigen::MatrixXd J_tree = tree_.compute_jacobian_base(q);
+    return base_frame_.adjoint() * J_tree;
 }
 
 Eigen::MatrixXd Robot::jacobe(const Eigen::VectorXd& q) const {
-    return tree_.compute_jacobian_ee(q);
+    Eigen::MatrixXd J_flange = tree_.compute_jacobian_ee(q);
+
+    if (!has_active_tool()) {
+        return J_flange;
+    }
+
+    math::SE3 T_tool_inv = active_tool().tcp_pose().inverse();
+    return T_tool_inv.adjoint() * J_flange;
 }
 
 Eigen::MatrixXd Robot::jacob0() const {
