@@ -65,17 +65,13 @@ TEST_CASE("Joint: SE3 precomputation for different DH conventions", "[joint][se3
     }
 }
 
-TEST_CASE("Joint: SE3 precomputation for prismatic joints", "[joint][se3][storage]") {
+TEST_CASE("Joint: No precomputation for prismatic joints", "[joint][se3][storage]") {
     Joint joint("prismatic", JointType::PRISMATIC, 0, 1);
     DHParams dh(0.0, 0.0, 0.2, 0.0, DHConvention::STANDARD);
     joint.set_dh_params(dh);
     joint.precompute_dh_se3();
 
-    REQUIRE(joint.has_dh_se3());
-
-    // At q=0, should have d offset in Z
-    SE3 T = joint.dh_se3_base();
-    REQUIRE_THAT(T.translation().z(), Catch::Matchers::WithinAbs(0.2, 1e-6));
+    REQUIRE_FALSE(joint.has_dh_se3());
 }
 
 TEST_CASE("Joint: No precomputation for joints without DH parameters", "[joint][se3][storage]") {

@@ -33,6 +33,7 @@ add_executable(robospace-tests
     cpp/test_fk_validation.cpp
     cpp/test_dh_adapter.cpp
     cpp/test_joint_se3_storage.cpp
+    cpp/test_joint_transform_optimization.cpp
     cpp/bench_phase1_baseline.cpp
 )
 

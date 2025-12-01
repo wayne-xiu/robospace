@@ -24,7 +24,7 @@ Joint::Joint(const std::string& name, JointType type,
 }
 
 void Joint::precompute_dh_se3() {
-    if (!has_dh_) {
+    if (!has_dh_ || is_prismatic()) {
         return;
     }
 
@@ -33,30 +33,33 @@ void Joint::precompute_dh_se3() {
 }
 
 math::SE3 Joint::transform(double q) const {
-    // Fixed joint: just return origin
     if (type_ == JointType::FIXED) {
         return origin_;
     }
 
-    // If DH parameters are available, use them
+    if (has_dh_se3_ && is_revolute()) {
+        math::SO3 Rz_q = math::SO3::RotZ(q);
+        math::SE3 T_rot(Rz_q.matrix(), Eigen::Vector3d::Zero());
+
+        if (dh_params_.convention == DHConvention::STANDARD) {
+            return T_rot * dh_se3_base_;
+        } else {
+            return dh_se3_base_ * T_rot;
+        }
+    }
+
     if (has_dh_) {
         return dh_params_.transform(q, is_prismatic());
     }
 
-    // Otherwise, use URDF-style origin + axis
-    // T = origin * exp([axis] * q)
-
     if (is_revolute()) {
-        // Rotation about axis by angle q
         math::SO3 R = math::SO3::FromAxisAngle(axis_, q);
         return origin_ * math::SE3(R.matrix(), Eigen::Vector3d::Zero());
     } else if (is_prismatic()) {
-        // Translation along axis by distance q
         Eigen::Vector3d translation = axis_ * q;
         return origin_ * math::SE3::Translation(translation);
     }
 
-    // Should not reach here
     return origin_;
 }
 

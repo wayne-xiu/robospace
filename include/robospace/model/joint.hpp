@@ -41,7 +41,11 @@ public:
     int child_link_id() const { return child_link_id_; }
 
     // Kinematic representations
-    void set_dh_params(const DHParams& dh) { dh_params_ = dh; has_dh_ = true; }
+    void set_dh_params(const DHParams& dh) {
+        dh_params_ = dh;
+        has_dh_ = true;
+        has_dh_se3_ = false;
+    }
     const DHParams& dh_params() const { return dh_params_; }
     bool has_dh_params() const { return has_dh_; }
 
