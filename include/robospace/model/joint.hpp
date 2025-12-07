@@ -19,7 +19,7 @@ enum class JointType {
 /**
  * @brief Robot joint connecting two links
  *
- * Supports multiple kinematic representations (DH, URDF, screw axis),
+ * Supports DH or URDF kinematic representations,
  * industrial robot features (axis direction, coupling), and limits.
  */
 class Joint {
@@ -49,13 +49,6 @@ public:
     void set_axis(const Eigen::Vector3d& axis) { axis_ = axis.normalized(); }
     const math::SE3& origin() const { return origin_; }
     const Eigen::Vector3d& axis() const { return axis_; }
-
-    void set_screw_axis(const Eigen::Vector<double, 6>& screw) {
-        screw_axis_ = screw;
-        has_screw_ = true;
-    }
-    const Eigen::Vector<double, 6>& screw_axis() const { return screw_axis_; }
-    bool has_screw_axis() const { return has_screw_; }
 
     // Industrial robot features (axis direction and coupling)
     struct CouplingTerm {
@@ -134,9 +127,6 @@ private:
 
     math::SE3 origin_ = math::SE3::Identity();  // URDF origin
     Eigen::Vector3d axis_ = Eigen::Vector3d::UnitZ();  // URDF axis (default Z)
-
-    Eigen::Vector<double, 6> screw_axis_;  // Modern Robotics screw axis
-    bool has_screw_ = false;
 
     // Axis direction and coupling ("Joint Senses")
     int axis_direction_ = 1;  // ±1 for normal/inverted axis
