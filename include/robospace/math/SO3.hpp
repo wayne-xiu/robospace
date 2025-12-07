@@ -2,10 +2,14 @@
 
 #include <robospace/math/so3.hpp>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <iostream>
 
 namespace robospace {
 namespace math {
+
+/// Euler angle conventions
+enum class EulerConvention { XYZ, ZYX, ZYZ, XYX };
 
 /**
  * @brief SO(3) Lie group element (rotation)
@@ -66,11 +70,20 @@ public:
      */
     static SO3 RotY(double angle);
 
-    /**
-     * @brief Create rotation around Z axis
-     * @param angle Rotation angle in radians
-     */
     static SO3 RotZ(double angle);
+
+    /// Create from Roll-Pitch-Yaw angles (XYZ convention)
+    static SO3 FromRPY(double roll, double pitch, double yaw);
+
+    /// Create from Euler angles with specified convention
+    static SO3 FromEuler(double alpha, double beta, double gamma,
+                         EulerConvention convention = EulerConvention::XYZ);
+
+    /// Create from quaternion
+    static SO3 FromQuaternion(const Eigen::Quaterniond& q);
+
+    /// Create from rotation vector (axis * angle)
+    static SO3 FromRotationVector(const Eigen::Vector3d& rotvec);
 
     // Accessors
 
@@ -85,6 +98,18 @@ public:
      * @param angle Output: rotation angle in radians [0, π]
      */
     void axisAngle(Eigen::Vector3d& axis, double& angle) const;
+
+    /// Get as quaternion
+    Eigen::Quaterniond quaternion() const;
+
+    /// Get Roll-Pitch-Yaw angles (XYZ convention)
+    Eigen::Vector3d rpy() const;
+
+    /// Get Euler angles with specified convention
+    Eigen::Vector3d euler(EulerConvention convention = EulerConvention::XYZ) const;
+
+    /// Get rotation vector (axis * angle)
+    Eigen::Vector3d rotationVector() const;
 
     // Group operations
 

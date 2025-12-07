@@ -36,6 +36,82 @@ SO3 SO3::RotZ(double angle) {
     return FromAxisAngle(Eigen::Vector3d::UnitZ(), angle);
 }
 
+SO3 SO3::FromRPY(double roll, double pitch, double yaw) {
+    return FromEuler(roll, pitch, yaw, EulerConvention::XYZ);
+}
+
+SO3 SO3::FromEuler(double alpha, double beta, double gamma, EulerConvention convention) {
+    Eigen::AngleAxisd r1, r2, r3;
+
+    switch (convention) {
+        case EulerConvention::XYZ:
+            r1 = Eigen::AngleAxisd(alpha, Eigen::Vector3d::UnitX());
+            r2 = Eigen::AngleAxisd(beta, Eigen::Vector3d::UnitY());
+            r3 = Eigen::AngleAxisd(gamma, Eigen::Vector3d::UnitZ());
+            return SO3((r3 * r2 * r1).toRotationMatrix());
+
+        case EulerConvention::ZYX:
+            r1 = Eigen::AngleAxisd(alpha, Eigen::Vector3d::UnitX());
+            r2 = Eigen::AngleAxisd(beta, Eigen::Vector3d::UnitY());
+            r3 = Eigen::AngleAxisd(gamma, Eigen::Vector3d::UnitZ());
+            return SO3((r1 * r2 * r3).toRotationMatrix());
+
+        case EulerConvention::ZYZ:
+            r1 = Eigen::AngleAxisd(alpha, Eigen::Vector3d::UnitZ());
+            r2 = Eigen::AngleAxisd(beta, Eigen::Vector3d::UnitY());
+            r3 = Eigen::AngleAxisd(gamma, Eigen::Vector3d::UnitZ());
+            return SO3((r1 * r2 * r3).toRotationMatrix());
+
+        case EulerConvention::XYX:
+            r1 = Eigen::AngleAxisd(alpha, Eigen::Vector3d::UnitX());
+            r2 = Eigen::AngleAxisd(beta, Eigen::Vector3d::UnitY());
+            r3 = Eigen::AngleAxisd(gamma, Eigen::Vector3d::UnitX());
+            return SO3((r1 * r2 * r3).toRotationMatrix());
+    }
+    return SO3::Identity();
+}
+
+SO3 SO3::FromQuaternion(const Eigen::Quaterniond& q) {
+    return SO3(q.normalized().toRotationMatrix());
+}
+
+SO3 SO3::FromRotationVector(const Eigen::Vector3d& rotvec) {
+    double angle = rotvec.norm();
+    if (angle < 1e-10) {
+        return Identity();
+    }
+    return FromAxisAngle(rotvec / angle, angle);
+}
+
+Eigen::Quaterniond SO3::quaternion() const {
+    return Eigen::Quaterniond(R_);
+}
+
+Eigen::Vector3d SO3::rpy() const {
+    return euler(EulerConvention::XYZ);
+}
+
+Eigen::Vector3d SO3::euler(EulerConvention convention) const {
+    switch (convention) {
+        case EulerConvention::XYZ:
+            return R_.eulerAngles(2, 1, 0).reverse();
+        case EulerConvention::ZYX:
+            return R_.eulerAngles(0, 1, 2);
+        case EulerConvention::ZYZ:
+            return R_.eulerAngles(2, 1, 2);
+        case EulerConvention::XYX:
+            return R_.eulerAngles(0, 1, 0);
+    }
+    return Eigen::Vector3d::Zero();
+}
+
+Eigen::Vector3d SO3::rotationVector() const {
+    Eigen::Vector3d axis;
+    double angle;
+    axisAngle(axis, angle);
+    return axis * angle;
+}
+
 void SO3::axisAngle(Eigen::Vector3d& axis, double& angle) const {
     // Extract angle from trace
     double trace = R_.trace();

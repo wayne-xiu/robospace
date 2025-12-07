@@ -1,5 +1,6 @@
 #pragma once
 
+#include <robospace/math/SO3.hpp>  // For EulerConvention
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <iostream>
@@ -7,15 +8,7 @@
 namespace robospace {
 namespace math {
 
-/**
- * @brief Euler angle convention
- */
-enum class EulerConvention {
-    XYZ,  ///< Roll-Pitch-Yaw (commonly used in robotics)
-    ZYX,  ///< Yaw-Pitch-Roll
-    ZYZ,  ///< ZYZ Euler angles
-    XYX,  ///< XYX Euler angles
-};
+// EulerConvention is now defined in SO3.hpp
 
 /**
  * @brief SO(3) rotation with multiple representations
