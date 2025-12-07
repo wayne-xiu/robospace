@@ -50,7 +50,7 @@ public:
     const math::SE3& origin() const { return origin_; }
     const Eigen::Vector3d& axis() const { return axis_; }
 
-    // Industrial robot features (axis direction and coupling)
+    // Axis direction and coupling (industrial robot features)
     struct CouplingTerm {
         int from_joint_id;
         double coefficient;
@@ -73,7 +73,7 @@ public:
         return coupling_terms_;
     }
 
-    // Effective angle: q_eff = axis_direction * (q_input + Σ(coef_i * q_i))
+    // FK: q_eff = axis_direction * q_input + Σ(coef_i * q_i)
     double get_effective_angle(double q_input, const Eigen::VectorXd& all_q) const {
         double q = axis_direction_ * q_input;
 
@@ -84,6 +84,11 @@ public:
         }
 
         return q;
+    }
+
+    // Jacobian: Apply axis direction scaling (inverts column if axis_direction=-1)
+    void scale_jacobian_column(Eigen::Ref<Eigen::VectorXd> jacobian_col) const {
+        jacobian_col *= axis_direction_;
     }
 
     // Limits

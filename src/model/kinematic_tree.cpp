@@ -87,22 +87,22 @@ Eigen::MatrixXd KinematicTree::compute_jacobian_base_impl(const std::vector<math
         }
     }
 
-    // Save geometric Jacobian for applying axis direction and coupling
+    // Save geometric Jacobian before applying industrial robot transformations
     const Eigen::MatrixXd J_geo = J;
 
-    // Build mapping from joint index to column index
+    // Build joint index → column index mapping for coupling lookups
     std::unordered_map<int, int> joint_to_col;
     for (int col = 0; col < n_dof; ++col) {
         joint_to_col[active_indices[col]] = col;
     }
 
-    // Apply axis direction (inverts columns if needed)
+    // Apply axis direction scaling (handled by Joint)
     for (int col = 0; col < n_dof; ++col) {
-        int i = active_indices[col];
-        J.col(col) = J_geo.col(col) * joints_[i].axis_direction();
+        int joint_idx = active_indices[col];
+        joints_[joint_idx].scale_jacobian_column(J.col(col));
     }
 
-    // Apply joint coupling (J2-J3 coupling, etc.)
+    // Apply coupling: if joint B couples from joint A, add J_geo[B] to J[A]
     for (int col_b = 0; col_b < n_dof; ++col_b) {
         int joint_b = active_indices[col_b];
         const auto& coupling_terms = joints_[joint_b].coupling_terms();
