@@ -51,11 +51,14 @@ public:
     // Returns 6×n Jacobian: rows 0-2 = angular (ω), rows 3-5 = linear (v)
     // NOTE: Returns FLANGE Jacobian (last link). Does NOT include tool/TCP offset.
     // For TCP Jacobian, use Robot::jacobe() which may apply tool transformation.
+    //
+    // compute_jacobian_base: Jacobian in base frame (spatial)
+    // compute_jacobian_ee:   Jacobian in end-effector frame (body)
     Eigen::MatrixXd compute_jacobian_base(const Eigen::VectorXd& q) const;
     Eigen::MatrixXd compute_jacobian_ee(const Eigen::VectorXd& q) const;
 
 private:
-    Eigen::MatrixXd compute_jacobian_base_impl(const Eigen::VectorXd& q, const std::vector<math::SE3>& poses) const;
+    Eigen::MatrixXd compute_jacobian_base_impl(const std::vector<math::SE3>& poses) const;
 
     std::vector<Link> links_;
     std::vector<Joint> joints_;

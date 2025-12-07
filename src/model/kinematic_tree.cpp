@@ -52,11 +52,8 @@ math::SE3 KinematicTree::compute_link_pose(const Eigen::VectorXd& q, int link_id
     return pose;
 }
 
-Eigen::MatrixXd KinematicTree::compute_jacobian_base_impl(const Eigen::VectorXd& q, const std::vector<math::SE3>& poses) const {
-    if (num_joints() == 0) {
-        return Eigen::MatrixXd::Zero(6, 0);
-    }
-
+Eigen::MatrixXd KinematicTree::compute_jacobian_base_impl(const std::vector<math::SE3>& poses) const {
+    // Build list of active (non-fixed) joints
     std::vector<int> active_indices;
     for (int i = 0; i < num_joints(); ++i) {
         if (!joints_[i].is_fixed()) {
@@ -67,9 +64,14 @@ Eigen::MatrixXd KinematicTree::compute_jacobian_base_impl(const Eigen::VectorXd&
     const int n_dof = static_cast<int>(active_indices.size());
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(6, n_dof);
 
+    if (n_dof == 0) {
+        return J;  // Return 6×0 matrix for robots with no active joints
+    }
+
     math::SE3 T_ee = poses.back();
     Eigen::Vector3d p_ee = T_ee.translation();
 
+    // Compute geometric Jacobian (before axis direction and coupling)
     for (int col = 0; col < n_dof; ++col) {
         int i = active_indices[col];
         math::SE3 T_joint = poses[i] * joints_[i].origin();
@@ -85,19 +87,22 @@ Eigen::MatrixXd KinematicTree::compute_jacobian_base_impl(const Eigen::VectorXd&
         }
     }
 
-    // Save geometric Jacobian for chain rule
+    // Save geometric Jacobian for applying axis direction and coupling
     const Eigen::MatrixXd J_geo = J;
 
+    // Build mapping from joint index to column index
     std::unordered_map<int, int> joint_to_col;
     for (int col = 0; col < n_dof; ++col) {
         joint_to_col[active_indices[col]] = col;
     }
 
+    // Apply axis direction (inverts columns if needed)
     for (int col = 0; col < n_dof; ++col) {
         int i = active_indices[col];
         J.col(col) = J_geo.col(col) * joints_[i].axis_direction();
     }
 
+    // Apply joint coupling (J2-J3 coupling, etc.)
     for (int col_b = 0; col_b < n_dof; ++col_b) {
         int joint_b = active_indices[col_b];
         const auto& coupling_terms = joints_[joint_b].coupling_terms();
@@ -119,8 +124,12 @@ Eigen::MatrixXd KinematicTree::compute_jacobian_base(const Eigen::VectorXd& q) c
         throw std::invalid_argument("Configuration size mismatch");
     }
 
+    if (num_joints() == 0) {
+        return Eigen::MatrixXd::Zero(6, 0);
+    }
+
     std::vector<math::SE3> poses = compute_forward_kinematics(q);
-    return compute_jacobian_base_impl(q, poses);
+    return compute_jacobian_base_impl(poses);
 }
 
 Eigen::MatrixXd KinematicTree::compute_jacobian_ee(const Eigen::VectorXd& q) const {
@@ -133,7 +142,7 @@ Eigen::MatrixXd KinematicTree::compute_jacobian_ee(const Eigen::VectorXd& q) con
     }
 
     std::vector<math::SE3> poses = compute_forward_kinematics(q);
-    Eigen::MatrixXd J_base = compute_jacobian_base_impl(q, poses);
+    Eigen::MatrixXd J_base = compute_jacobian_base_impl(poses);
 
     math::SE3 T_ee = poses.back();
     return T_ee.inverse().adjoint() * J_base;

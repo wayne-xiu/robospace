@@ -52,12 +52,18 @@ public:
     math::SE3 current_pose(int link_id) const;
     std::vector<math::SE3> current_pose_all() const;
 
-    // Differential kinematics
+    // Differential kinematics - Stateless API
+    // jacob0: Jacobian in base/world frame (spatial frame)
+    // jacobe: Jacobian in end-effector/tool frame (body frame)
+    // Returns 6×n matrix: rows 0-2 = angular velocity, rows 3-5 = linear velocity
     Eigen::MatrixXd jacob0(const Eigen::VectorXd& q) const;
     Eigen::MatrixXd jacobe(const Eigen::VectorXd& q) const;
+
+    // Differential kinematics - Stateful API
     Eigen::MatrixXd jacob0() const;
     Eigen::MatrixXd jacobe() const;
 
+    // Manipulability measure (Yoshikawa) - higher values indicate better dexterity
     double manipulability(const Eigen::VectorXd& q) const;
 
     // Base frame
