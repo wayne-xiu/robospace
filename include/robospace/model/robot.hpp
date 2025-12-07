@@ -33,8 +33,8 @@ public:
     std::pair<Eigen::VectorXd, Eigen::VectorXd> joint_limits() const;
 
     // Joint space configuration (stateful API)
-    const Eigen::VectorXd& config() const { return tree_.configuration(); }
-    void set_config(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
+    const Eigen::VectorXd& config() const { return q_; }
+    void set_config(const Eigen::VectorXd& q);
 
     const Eigen::VectorXd& home() const { return home_position_; }
     void set_home(const Eigen::VectorXd& q);
@@ -92,6 +92,7 @@ private:
     math::SE3 base_frame_ = math::SE3::Identity();
     std::vector<Tool> tools_;
     int active_tool_id_ = -1;
+    Eigen::VectorXd q_;                // Joint configuration (stateful)
     Eigen::VectorXd home_position_;
     std::unordered_map<std::string, int> link_name_to_id_;
     std::unordered_map<std::string, int> joint_name_to_id_;
