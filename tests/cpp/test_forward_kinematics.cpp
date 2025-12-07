@@ -194,13 +194,13 @@ TEST_CASE("FK API: fk matches fk_all", "[fk][api]") {
     REQUIRE(T_tcp.isApprox(T_last));
 }
 
-TEST_CASE("FK API: fk uses stored config", "[fk][api]") {
+TEST_CASE("FK API: current_pose uses stored config", "[fk][api]") {
     Robot robot = create_2r_planar_robot();
     Eigen::VectorXd q = Eigen::Vector2d(0.3, 0.6);
 
-    robot.set_joints(q);
+    robot.set_config(q);
 
-    SE3 T_current = robot.fk();
+    SE3 T_current = robot.current_pose();
     SE3 T_explicit = robot.fk(q);
 
     REQUIRE(T_current.isApprox(T_explicit));
@@ -393,9 +393,9 @@ TEST_CASE("FK: Empty robot (no links)", "[fk][edge]") {
     REQUIRE(T_tcp.isApprox(SE3::Identity()));
 }
 
-TEST_CASE("FK: Configuration not set throws for fk", "[fk][edge][error]") {
+TEST_CASE("FK: Configuration not set throws for current_pose", "[fk][edge][error]") {
     Robot robot = create_2r_planar_robot();
-    REQUIRE_THROWS_AS(robot.fk(), std::runtime_error);
+    REQUIRE_THROWS_AS(robot.current_pose(), std::runtime_error);
 }
 
 TEST_CASE("FK: Stateless methods work without setting configuration", "[fk][edge]") {

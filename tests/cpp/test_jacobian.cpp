@@ -122,7 +122,7 @@ TEST_CASE("Jacobian: Stateful method uses stored configuration", "[jacobian]") {
 
     Eigen::VectorXd q(2);
     q << 0.3, 0.7;
-    robot.set_joints(q);
+    robot.set_config(q);
 
     Eigen::MatrixXd J_stateless = robot.jacob0(q);
     Eigen::MatrixXd J_stateful = robot.jacob0();

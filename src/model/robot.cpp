@@ -79,28 +79,28 @@ std::vector<math::SE3> Robot::fk_all(const Eigen::VectorXd& q) const {
 }
 
 // Forward kinematics (stateful)
-math::SE3 Robot::fk() const {
+math::SE3 Robot::current_pose() const {
     if (tree_.configuration().size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
     return fk(tree_.configuration());
 }
 
-math::SE3 Robot::fk(const std::string& link_name) const {
+math::SE3 Robot::current_pose(const std::string& link_name) const {
     if (tree_.configuration().size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
     return fk(tree_.configuration(), link_name);
 }
 
-math::SE3 Robot::fk(int link_id) const {
+math::SE3 Robot::current_pose(int link_id) const {
     if (tree_.configuration().size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
     return fk(tree_.configuration(), link_id);
 }
 
-std::vector<math::SE3> Robot::fk_all() const {
+std::vector<math::SE3> Robot::current_pose_all() const {
     if (tree_.configuration().size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
@@ -244,7 +244,7 @@ math::SE3 Robot::pose() const {
     if (tree_.configuration().size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return Entity::pose() * fk(tree_.configuration());
+    return Entity::pose() * current_pose();
 }
 
 void Robot::add_link(const Link& link) {

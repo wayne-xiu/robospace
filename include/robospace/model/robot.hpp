@@ -32,25 +32,25 @@ public:
     bool is_valid() const { return tree_.is_valid(); }
     std::pair<Eigen::VectorXd, Eigen::VectorXd> joint_limits() const;
 
-    // Joint space configuration
-    const Eigen::VectorXd& joints() const { return tree_.configuration(); }
-    void set_joints(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
+    // Joint space configuration (stateful API)
+    const Eigen::VectorXd& config() const { return tree_.configuration(); }
+    void set_config(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
 
     const Eigen::VectorXd& home() const { return home_position_; }
     void set_home(const Eigen::VectorXd& q);
     bool has_home() const { return home_position_.size() > 0; }
 
-    // Forward kinematics (stateless)
+    // Forward kinematics - Stateless API (for planning, optimization, multi-threaded)
     math::SE3 fk(const Eigen::VectorXd& q) const;
     math::SE3 fk(const Eigen::VectorXd& q, const std::string& link_name) const;
     math::SE3 fk(const Eigen::VectorXd& q, int link_id) const;
     std::vector<math::SE3> fk_all(const Eigen::VectorXd& q) const;
 
-    // Forward kinematics (stateful)
-    math::SE3 fk() const;
-    math::SE3 fk(const std::string& link_name) const;
-    math::SE3 fk(int link_id) const;
-    std::vector<math::SE3> fk_all() const;
+    // Forward kinematics - Stateful API (for scripts, visualization, convenience)
+    math::SE3 current_pose() const;
+    math::SE3 current_pose(const std::string& link_name) const;
+    math::SE3 current_pose(int link_id) const;
+    std::vector<math::SE3> current_pose_all() const;
 
     // Differential kinematics
     Eigen::MatrixXd jacob0(const Eigen::VectorXd& q) const;
