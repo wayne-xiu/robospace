@@ -2,8 +2,6 @@
 
 # Math module
 set(MATH_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/math/transform.cpp
-    ${CMAKE_SOURCE_DIR}/src/math/rotation.cpp
     ${CMAKE_SOURCE_DIR}/src/math/se3.cpp
     ${CMAKE_SOURCE_DIR}/src/math/SE3.cpp
     ${CMAKE_SOURCE_DIR}/src/math/so3.cpp
@@ -11,8 +9,6 @@ set(MATH_SOURCES
 )
 
 set(MATH_HEADERS
-    ${CMAKE_SOURCE_DIR}/include/robospace/math/transform.hpp
-    ${CMAKE_SOURCE_DIR}/include/robospace/math/rotation.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/math/se3.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/math/SE3.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/math/so3.hpp

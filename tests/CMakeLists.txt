@@ -13,8 +13,6 @@ FetchContent_MakeAvailable(Catch2)
 
 # Test executable (Catch2WithMain provides main())
 add_executable(robospace-tests
-    cpp/test_transform.cpp
-    cpp/test_rotation.cpp
     cpp/test_se3.cpp
     cpp/test_SE3.cpp
     cpp/test_so3.cpp
