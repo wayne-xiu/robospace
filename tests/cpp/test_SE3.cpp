@@ -276,3 +276,75 @@ TEST_CASE("SE3: Screw motion along X-axis", "[SE3]") {
     // Should have translation along X
     REQUIRE(g.translation()(0) > 0.5);  // Some translation along X
 }
+
+// Tests for new convenience methods
+
+TEST_CASE("SE3: RotX", "[SE3]") {
+    SE3 T = SE3::RotX(M_PI / 2);
+    Eigen::Vector3d v(0, 1, 0);
+    Eigen::Vector3d result = T * v;
+
+    REQUIRE(result.isApprox(Eigen::Vector3d(0, 0, 1), 1e-10));
+    REQUIRE(T.translation().isApprox(Eigen::Vector3d::Zero()));
+}
+
+TEST_CASE("SE3: RotY", "[SE3]") {
+    SE3 T = SE3::RotY(M_PI / 2);
+    Eigen::Vector3d v(0, 0, 1);
+    Eigen::Vector3d result = T * v;
+
+    REQUIRE(result.isApprox(Eigen::Vector3d(1, 0, 0), 1e-10));
+    REQUIRE(T.translation().isApprox(Eigen::Vector3d::Zero()));
+}
+
+TEST_CASE("SE3: RotZ", "[SE3]") {
+    SE3 T = SE3::RotZ(M_PI / 2);
+    Eigen::Vector3d v(1, 0, 0);
+    Eigen::Vector3d result = T * v;
+
+    REQUIRE(result.isApprox(Eigen::Vector3d(0, 1, 0), 1e-10));
+    REQUIRE(T.translation().isApprox(Eigen::Vector3d::Zero()));
+}
+
+TEST_CASE("SE3: FromRPY", "[SE3]") {
+    SE3 T = SE3::FromRPY(0, 0, M_PI / 2, Eigen::Vector3d(1, 2, 3));
+
+    REQUIRE(T.translation().isApprox(Eigen::Vector3d(1, 2, 3)));
+
+    Eigen::Vector3d v(1, 0, 0);
+    Eigen::Vector3d result = T.so3() * v;
+    REQUIRE(result.isApprox(Eigen::Vector3d(0, 1, 0), 1e-10));
+}
+
+TEST_CASE("SE3: FromAxisAngle", "[SE3]") {
+    SE3 T = SE3::FromAxisAngle(Eigen::Vector3d::UnitZ(), M_PI / 2, Eigen::Vector3d(1, 0, 0));
+
+    REQUIRE(T.translation().isApprox(Eigen::Vector3d(1, 0, 0)));
+    REQUIRE(T.so3().isApprox(SO3::RotZ(M_PI / 2), 1e-10));
+}
+
+TEST_CASE("SE3: FromRotationAndTranslation", "[SE3]") {
+    SO3 R = SO3::RotZ(M_PI / 4);
+    Eigen::Vector3d p(1, 2, 3);
+    SE3 T = SE3::FromRotationAndTranslation(R, p);
+
+    REQUIRE(T.so3().isApprox(R, 1e-10));
+    REQUIRE(T.translation().isApprox(p));
+}
+
+TEST_CASE("SE3: so3 accessor", "[SE3]") {
+    SE3 T = SE3::RotZ(M_PI / 3);
+    SO3 R = T.so3();
+
+    REQUIRE(R.isApprox(SO3::RotZ(M_PI / 3), 1e-10));
+}
+
+TEST_CASE("SE3: rpy accessor", "[SE3]") {
+    double roll = 0.1, pitch = 0.2, yaw = 0.3;
+    SE3 T = SE3::FromRPY(roll, pitch, yaw);
+    Eigen::Vector3d rpy = T.rpy();
+
+    REQUIRE(std::abs(rpy(0) - roll) < 1e-10);
+    REQUIRE(std::abs(rpy(1) - pitch) < 1e-10);
+    REQUIRE(std::abs(rpy(2) - yaw) < 1e-10);
+}

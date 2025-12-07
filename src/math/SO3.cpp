@@ -94,6 +94,7 @@ Eigen::Vector3d SO3::rpy() const {
 Eigen::Vector3d SO3::euler(EulerConvention convention) const {
     switch (convention) {
         case EulerConvention::XYZ:
+            // Eigen returns [yaw,pitch,roll]; reverse to get [roll,pitch,yaw]
             return R_.eulerAngles(2, 1, 0).reverse();
         case EulerConvention::ZYX:
             return R_.eulerAngles(0, 1, 2);

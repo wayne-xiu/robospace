@@ -26,6 +26,38 @@ SE3 SE3::Translation(const Eigen::Vector3d& p) {
     return SE3(Eigen::Matrix3d::Identity(), p);
 }
 
+SE3 SE3::FromRotationAndTranslation(const SO3& R, const Eigen::Vector3d& p) {
+    return SE3(R.matrix(), p);
+}
+
+SE3 SE3::RotX(double angle) {
+    return FromRotationAndTranslation(SO3::RotX(angle), Eigen::Vector3d::Zero());
+}
+
+SE3 SE3::RotY(double angle) {
+    return FromRotationAndTranslation(SO3::RotY(angle), Eigen::Vector3d::Zero());
+}
+
+SE3 SE3::RotZ(double angle) {
+    return FromRotationAndTranslation(SO3::RotZ(angle), Eigen::Vector3d::Zero());
+}
+
+SE3 SE3::FromRPY(double roll, double pitch, double yaw, const Eigen::Vector3d& p) {
+    return FromRotationAndTranslation(SO3::FromRPY(roll, pitch, yaw), p);
+}
+
+SE3 SE3::FromAxisAngle(const Eigen::Vector3d& axis, double angle, const Eigen::Vector3d& p) {
+    return FromRotationAndTranslation(SO3::FromAxisAngle(axis, angle), p);
+}
+
+SO3 SE3::so3() const {
+    return SO3(rotation());
+}
+
+Eigen::Vector3d SE3::rpy() const {
+    return so3().rpy();
+}
+
 void SE3::decompose(Eigen::Matrix3d& R, Eigen::Vector3d& p) const {
     R = g_.block<3, 3>(0, 0);
     p = g_.block<3, 1>(0, 3);

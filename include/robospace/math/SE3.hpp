@@ -1,6 +1,7 @@
 #pragma once
 
 #include <robospace/math/se3.hpp>
+#include <robospace/math/SO3.hpp>
 #include <Eigen/Dense>
 #include <iostream>
 
@@ -54,6 +55,26 @@ public:
      */
     static SE3 Translation(const Eigen::Vector3d& p);
 
+    /// Create from SO3 rotation and translation
+    static SE3 FromRotationAndTranslation(const SO3& R, const Eigen::Vector3d& p);
+
+    /// Rotation around X axis (no translation)
+    static SE3 RotX(double angle);
+
+    /// Rotation around Y axis (no translation)
+    static SE3 RotY(double angle);
+
+    /// Rotation around Z axis (no translation)
+    static SE3 RotZ(double angle);
+
+    /// Create from Roll-Pitch-Yaw angles and translation
+    static SE3 FromRPY(double roll, double pitch, double yaw,
+                       const Eigen::Vector3d& p = Eigen::Vector3d::Zero());
+
+    /// Create from axis-angle rotation and translation
+    static SE3 FromAxisAngle(const Eigen::Vector3d& axis, double angle,
+                             const Eigen::Vector3d& p = Eigen::Vector3d::Zero());
+
     // Accessors
 
     /**
@@ -75,6 +96,12 @@ public:
      * @brief Decompose into rotation and translation
      */
     void decompose(Eigen::Matrix3d& R, Eigen::Vector3d& p) const;
+
+    /// Get rotation as SO3
+    SO3 so3() const;
+
+    /// Get Roll-Pitch-Yaw angles of the rotation part
+    Eigen::Vector3d rpy() const;
 
     // Group operations
 
