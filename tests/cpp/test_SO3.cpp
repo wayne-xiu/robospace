@@ -257,3 +257,65 @@ TEST_CASE("SO3: 180° rotation", "[SO3]") {
 
     REQUIRE(v_rotated.isApprox(expected, 1e-10));
 }
+
+// Tests for new convenience methods
+
+TEST_CASE("SO3: FromRPY", "[SO3]") {
+    SO3 R = SO3::FromRPY(0, 0, M_PI / 2);  // 90° yaw
+    Eigen::Vector3d v(1, 0, 0);
+    Eigen::Vector3d v_rot = R * v;
+
+    REQUIRE(v_rot.isApprox(Eigen::Vector3d(0, 1, 0), 1e-10));
+}
+
+TEST_CASE("SO3: FromEuler XYZ", "[SO3]") {
+    SO3 R = SO3::FromEuler(M_PI / 2, 0, 0, EulerConvention::XYZ);  // 90° roll
+    SO3 Rx = SO3::RotX(M_PI / 2);
+
+    REQUIRE(R.isApprox(Rx, 1e-10));
+}
+
+TEST_CASE("SO3: FromQuaternion", "[SO3]") {
+    Eigen::Quaterniond q = Eigen::Quaterniond(Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitZ()));
+    SO3 R = SO3::FromQuaternion(q);
+    SO3 expected = SO3::RotZ(M_PI / 2);
+
+    REQUIRE(R.isApprox(expected, 1e-10));
+}
+
+TEST_CASE("SO3: FromRotationVector", "[SO3]") {
+    Eigen::Vector3d rotvec(0, 0, M_PI / 2);
+    SO3 R = SO3::FromRotationVector(rotvec);
+    SO3 expected = SO3::RotZ(M_PI / 2);
+
+    REQUIRE(R.isApprox(expected, 1e-10));
+}
+
+TEST_CASE("SO3: quaternion accessor", "[SO3]") {
+    SO3 R = SO3::RotZ(M_PI / 2);
+    Eigen::Quaterniond q = R.quaternion();
+
+    // Convert back and verify
+    SO3 R2 = SO3::FromQuaternion(q);
+    REQUIRE(R.isApprox(R2, 1e-10));
+}
+
+TEST_CASE("SO3: rpy accessor", "[SO3]") {
+    double roll = 0.1, pitch = 0.2, yaw = 0.3;
+    SO3 R = SO3::FromRPY(roll, pitch, yaw);
+    Eigen::Vector3d rpy = R.rpy();
+
+    REQUIRE(std::abs(rpy(0) - roll) < 1e-10);
+    REQUIRE(std::abs(rpy(1) - pitch) < 1e-10);
+    REQUIRE(std::abs(rpy(2) - yaw) < 1e-10);
+}
+
+TEST_CASE("SO3: rotationVector accessor", "[SO3]") {
+    Eigen::Vector3d axis = Eigen::Vector3d(1, 2, 3).normalized();
+    double angle = 0.5;
+    SO3 R = SO3::FromAxisAngle(axis, angle);
+
+    Eigen::Vector3d rotvec = R.rotationVector();
+
+    REQUIRE(rotvec.isApprox(axis * angle, 1e-10));
+}

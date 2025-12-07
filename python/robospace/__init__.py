@@ -8,12 +8,13 @@ from ._robospace_core import (
     # Math types - Lie groups
     SE3,
     SO3,
-    Rotation,
-    Transform,
 
     # Math types - Lie algebras
     se3,
     so3,
+
+    # Euler convention enum
+    EulerConvention,
 
     # Factory functions
     make_se3,
@@ -47,12 +48,13 @@ __all__ = [
     # Math - Lie groups
     "SE3",
     "SO3",
-    "Rotation",
-    "Transform",
 
     # Math - Lie algebras
     "se3",
     "so3",
+
+    # Euler convention enum
+    "EulerConvention",
 
     # Factory functions
     "make_se3",

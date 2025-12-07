@@ -6,8 +6,6 @@
 #include "robospace/math/SO3.hpp"
 #include "robospace/math/se3.hpp"
 #include "robospace/math/so3.hpp"
-#include "robospace/math/rotation.hpp"
-#include "robospace/math/transform.hpp"
 
 namespace py = pybind11;
 using namespace robospace::math;
@@ -26,9 +24,23 @@ void bind_math(py::module_& m) {
         .def(py::init<>())
         .def_static("Identity", &SE3::Identity)
         .def_static("FromMatrix", [](const Eigen::Matrix4d& mat) { return SE3(mat); }, py::arg("matrix"), "Construct SE3 from 4x4 matrix")
+        .def_static("Translation", &SE3::Translation, py::arg("p"))
+        .def_static("FromRotationAndTranslation", &SE3::FromRotationAndTranslation,
+                   py::arg("R"), py::arg("p"))
+        .def_static("RotX", &SE3::RotX, py::arg("angle"))
+        .def_static("RotY", &SE3::RotY, py::arg("angle"))
+        .def_static("RotZ", &SE3::RotZ, py::arg("angle"))
+        .def_static("FromRPY", &SE3::FromRPY,
+                   py::arg("roll"), py::arg("pitch"), py::arg("yaw"),
+                   py::arg("p") = Eigen::Vector3d::Zero())
+        .def_static("FromAxisAngle", &SE3::FromAxisAngle,
+                   py::arg("axis"), py::arg("angle"),
+                   py::arg("p") = Eigen::Vector3d::Zero())
         .def("matrix", &SE3::matrix)
         .def("rotation", &SE3::rotation)
         .def("translation", &SE3::translation)
+        .def("so3", &SE3::so3)
+        .def("rpy", &SE3::rpy)
         .def("inverse", &SE3::inverse)
         .def("__mul__", [](const SE3& self, const SE3& other) {
             return self * other;
@@ -43,40 +55,21 @@ void bind_math(py::module_& m) {
         .def_static("RotX", &SO3::RotX, py::arg("angle"))
         .def_static("RotY", &SO3::RotY, py::arg("angle"))
         .def_static("RotZ", &SO3::RotZ, py::arg("angle"))
+        .def_static("FromRPY", &SO3::FromRPY,
+                   py::arg("roll"), py::arg("pitch"), py::arg("yaw"))
+        .def_static("FromEuler", &SO3::FromEuler,
+                   py::arg("alpha"), py::arg("beta"), py::arg("gamma"),
+                   py::arg("convention") = EulerConvention::XYZ)
+        .def_static("FromQuaternion", &SO3::FromQuaternion, py::arg("q"))
+        .def_static("FromRotationVector", &SO3::FromRotationVector, py::arg("rotvec"))
         .def("matrix", &SO3::matrix)
+        .def("quaternion", &SO3::quaternion)
+        .def("rpy", &SO3::rpy)
+        .def("euler", &SO3::euler,
+             py::arg("convention") = EulerConvention::XYZ)
+        .def("rotationVector", &SO3::rotationVector)
         .def("inverse", &SO3::inverse)
         .def("__mul__", [](const SO3& self, const SO3& other) {
-            return self * other;
-        });
-
-    // Rotation
-    py::class_<Rotation>(m, "Rotation", "Classical rotation")
-        .def(py::init<>())
-        .def_static("Identity", &Rotation::Identity)
-        .def_static("FromEuler",
-                   py::overload_cast<double, double, double, EulerConvention>(&Rotation::FromEuler),
-                   py::arg("roll"), py::arg("pitch"), py::arg("yaw"),
-                   py::arg("convention") = EulerConvention::XYZ)
-        .def_static("FromAxisAngle", &Rotation::FromAxisAngle,
-                   py::arg("axis"), py::arg("angle"))
-        .def("matrix", &Rotation::matrix)
-        .def("quaternion", &Rotation::quaternion);
-
-    // Transform
-    py::class_<Transform>(m, "Transform", "4x4 homogeneous transformation")
-        .def(py::init<>())
-        .def_static("Identity", &Transform::Identity)
-        .def_static("Translation",
-                   py::overload_cast<double, double, double>(&Transform::Translation),
-                   py::arg("x"), py::arg("y"), py::arg("z"))
-        .def_static("RotX", &Transform::RotX, py::arg("angle"))
-        .def_static("RotY", &Transform::RotY, py::arg("angle"))
-        .def_static("RotZ", &Transform::RotZ, py::arg("angle"))
-        .def("matrix", &Transform::matrix)
-        .def("rotation", &Transform::rotation)
-        .def("translation", &Transform::translation)
-        .def("inverse", &Transform::inverse)
-        .def("__mul__", [](const Transform& self, const Transform& other) {
             return self * other;
         });
 

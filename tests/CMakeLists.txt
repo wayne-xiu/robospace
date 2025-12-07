@@ -13,8 +13,6 @@ FetchContent_MakeAvailable(Catch2)
 
 # Test executable (Catch2WithMain provides main())
 add_executable(robospace-tests
-    cpp/test_transform.cpp
-    cpp/test_rotation.cpp
     cpp/test_se3.cpp
     cpp/test_SE3.cpp
     cpp/test_so3.cpp
@@ -30,7 +28,6 @@ add_executable(robospace-tests
     cpp/test_jacobian.cpp
     cpp/test_inverse_kinematics.cpp
     cpp/test_ik_ur5.cpp
-    cpp/test_fk_validation.cpp
 )
 
 target_link_libraries(robospace-tests PRIVATE
@@ -50,9 +47,11 @@ catch_discover_tests(robospace-tests)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/test_data
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# Copy robot models to build directory
-file(COPY ${CMAKE_SOURCE_DIR}/models
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# Copy robot models to build directory (if exists)
+if(EXISTS ${CMAKE_SOURCE_DIR}/models)
+    file(COPY ${CMAKE_SOURCE_DIR}/models
+         DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 
 # Set C++ standard
 set_target_properties(robospace-tests PROPERTIES

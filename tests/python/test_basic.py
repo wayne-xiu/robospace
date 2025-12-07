@@ -35,22 +35,6 @@ def test_se3_basic():
     assert np.allclose(R, np.eye(3))
 
 
-def test_transform_basic():
-    """Test Transform basic functionality"""
-    # Identity
-    T = rs.Transform()
-    assert T is not None
-
-    M = T.matrix()
-    assert M.shape == (4, 4)
-    assert np.allclose(M, np.eye(4))
-
-    # Translation
-    T2 = rs.Transform.Translation(1.0, 2.0, 3.0)
-    t = T2.translation()
-    assert np.allclose(t, [1, 2, 3])
-
-
 def test_lie_algebra():
     """Test Lie algebra types and exponential maps"""
     # se3 - twist
@@ -160,9 +144,6 @@ if __name__ == '__main__':
 
     test_se3_basic()
     print("✓ SE3 test passed")
-
-    test_transform_basic()
-    print("✓ Transform test passed")
 
     test_lie_algebra()
     print("✓ Lie algebra test passed")
