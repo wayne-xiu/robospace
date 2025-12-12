@@ -32,32 +32,38 @@ public:
     bool is_valid() const { return tree_.is_valid(); }
     std::pair<Eigen::VectorXd, Eigen::VectorXd> joint_limits() const;
 
-    // Joint space configuration
-    const Eigen::VectorXd& joints() const { return tree_.configuration(); }
-    void set_joints(const Eigen::VectorXd& q) { tree_.set_configuration(q); }
+    // Joint space configuration (stateful API)
+    const Eigen::VectorXd& config() const { return q_; }
+    void set_config(const Eigen::VectorXd& q);
 
     const Eigen::VectorXd& home() const { return home_position_; }
     void set_home(const Eigen::VectorXd& q);
     bool has_home() const { return home_position_.size() > 0; }
 
-    // Forward kinematics (stateless)
+    // Forward kinematics - Stateless API (for planning, optimization, multi-threaded)
     math::SE3 fk(const Eigen::VectorXd& q) const;
     math::SE3 fk(const Eigen::VectorXd& q, const std::string& link_name) const;
     math::SE3 fk(const Eigen::VectorXd& q, int link_id) const;
     std::vector<math::SE3> fk_all(const Eigen::VectorXd& q) const;
 
-    // Forward kinematics (stateful)
-    math::SE3 fk() const;
-    math::SE3 fk(const std::string& link_name) const;
-    math::SE3 fk(int link_id) const;
-    std::vector<math::SE3> fk_all() const;
+    // Forward kinematics - Stateful API (for scripts, visualization, convenience)
+    math::SE3 current_pose() const;
+    math::SE3 current_pose(const std::string& link_name) const;
+    math::SE3 current_pose(int link_id) const;
+    std::vector<math::SE3> current_pose_all() const;
 
-    // Differential kinematics
+    // Differential kinematics - Stateless API
+    // jacob0: Jacobian in base/world frame (spatial frame)
+    // jacobe: Jacobian in end-effector/tool frame (body frame)
+    // Returns 6×n matrix: rows 0-2 = angular velocity, rows 3-5 = linear velocity
     Eigen::MatrixXd jacob0(const Eigen::VectorXd& q) const;
     Eigen::MatrixXd jacobe(const Eigen::VectorXd& q) const;
+
+    // Differential kinematics - Stateful API
     Eigen::MatrixXd jacob0() const;
     Eigen::MatrixXd jacobe() const;
 
+    // Manipulability measure (Yoshikawa) - higher values indicate better dexterity
     double manipulability(const Eigen::VectorXd& q) const;
 
     // Base frame
@@ -92,6 +98,7 @@ private:
     math::SE3 base_frame_ = math::SE3::Identity();
     std::vector<Tool> tools_;
     int active_tool_id_ = -1;
+    Eigen::VectorXd q_;                // Joint configuration (stateful)
     Eigen::VectorXd home_position_;
     std::unordered_map<std::string, int> link_name_to_id_;
     std::unordered_map<std::string, int> joint_name_to_id_;

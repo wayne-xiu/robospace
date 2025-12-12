@@ -282,14 +282,14 @@ TEST_CASE("Robot: Error - get active tool when not set", "[robot]") {
     REQUIRE_THROWS_AS(robot.active_tool(), std::runtime_error);
 }
 
-TEST_CASE("Robot: joints() and set_joints() API", "[robot]") {
+TEST_CASE("Robot: config() and set_config() API", "[robot]") {
     Robot robot = create_2dof_robot();
 
     Eigen::VectorXd q(2);
     q << 0.5, -0.3;
-    robot.set_joints(q);
+    robot.set_config(q);
 
-    const Eigen::VectorXd& q_retrieved = robot.joints();
+    const Eigen::VectorXd& q_retrieved = robot.config();
     REQUIRE(q_retrieved.size() == 2);
     REQUIRE_THAT(q_retrieved(0), Catch::Matchers::WithinAbs(0.5, 1e-10));
     REQUIRE_THAT(q_retrieved(1), Catch::Matchers::WithinAbs(-0.3, 1e-10));

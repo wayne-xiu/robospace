@@ -30,6 +30,16 @@ std::pair<Eigen::VectorXd, Eigen::VectorXd> Robot::joint_limits() const {
     return {qmin, qmax};
 }
 
+void Robot::set_config(const Eigen::VectorXd& q) {
+    if (q.size() != num_joints()) {
+        throw std::invalid_argument(
+            "Configuration size mismatch: expected " +
+            std::to_string(num_joints()) + " values, got " +
+            std::to_string(q.size()));
+    }
+    q_ = q;
+}
+
 void Robot::set_home(const Eigen::VectorXd& q) {
     if (q.size() != dof()) {
         throw std::invalid_argument("Home configuration size must match dof");
@@ -79,32 +89,32 @@ std::vector<math::SE3> Robot::fk_all(const Eigen::VectorXd& q) const {
 }
 
 // Forward kinematics (stateful)
-math::SE3 Robot::fk() const {
-    if (tree_.configuration().size() == 0) {
+math::SE3 Robot::current_pose() const {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return fk(tree_.configuration());
+    return fk(q_);
 }
 
-math::SE3 Robot::fk(const std::string& link_name) const {
-    if (tree_.configuration().size() == 0) {
+math::SE3 Robot::current_pose(const std::string& link_name) const {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return fk(tree_.configuration(), link_name);
+    return fk(q_, link_name);
 }
 
-math::SE3 Robot::fk(int link_id) const {
-    if (tree_.configuration().size() == 0) {
+math::SE3 Robot::current_pose(int link_id) const {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return fk(tree_.configuration(), link_id);
+    return fk(q_, link_id);
 }
 
-std::vector<math::SE3> Robot::fk_all() const {
-    if (tree_.configuration().size() == 0) {
+std::vector<math::SE3> Robot::current_pose_all() const {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return fk_all(tree_.configuration());
+    return fk_all(q_);
 }
 
 // Differential kinematics
@@ -125,17 +135,17 @@ Eigen::MatrixXd Robot::jacobe(const Eigen::VectorXd& q) const {
 }
 
 Eigen::MatrixXd Robot::jacob0() const {
-    if (tree_.configuration().size() == 0) {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return jacob0(tree_.configuration());
+    return jacob0(q_);
 }
 
 Eigen::MatrixXd Robot::jacobe() const {
-    if (tree_.configuration().size() == 0) {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return jacobe(tree_.configuration());
+    return jacobe(q_);
 }
 
 void Robot::set_base(const math::SE3& base) {
@@ -241,10 +251,10 @@ math::SE3 Robot::pose() const {
     if (num_links() == 0) {
         return Entity::pose();
     }
-    if (tree_.configuration().size() == 0) {
+    if (q_.size() == 0) {
         throw std::runtime_error("Configuration not set");
     }
-    return Entity::pose() * fk(tree_.configuration());
+    return Entity::pose() * current_pose();
 }
 
 void Robot::add_link(const Link& link) {

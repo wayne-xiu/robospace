@@ -63,27 +63,8 @@ TEST_CASE("KinematicTree: Invalid tree (too many joints)", "[model][kinematics]"
 }
 
 // ============================================================================
-// Configuration
+// Configuration Size Validation
 // ============================================================================
-
-TEST_CASE("KinematicTree: Set configuration", "[model][kinematics]") {
-    KinematicTree tree;
-
-    Link base("base");
-    Link link1("link1");
-    Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
-
-    tree.add_link(base);
-    tree.add_joint(joint1);
-    tree.add_link(link1);
-
-    Eigen::VectorXd q(1);
-    q << M_PI / 4;
-
-    tree.set_configuration(q);
-    REQUIRE(tree.configuration().size() == 1);
-    REQUIRE_THAT(tree.configuration()(0), Catch::Matchers::WithinAbs(M_PI/4, 1e-10));
-}
 
 TEST_CASE("KinematicTree: Configuration size mismatch throws", "[model][kinematics]") {
     KinematicTree tree;
@@ -99,7 +80,7 @@ TEST_CASE("KinematicTree: Configuration size mismatch throws", "[model][kinemati
     Eigen::VectorXd q_wrong(2);  // Need 1, providing 2
     q_wrong << 0, 0;
 
-    REQUIRE_THROWS_AS(tree.set_configuration(q_wrong), std::invalid_argument);
+    REQUIRE_THROWS_AS(tree.compute_forward_kinematics(q_wrong), std::invalid_argument);
 }
 
 // ============================================================================
@@ -112,10 +93,7 @@ TEST_CASE("KinematicTree: FK base link at identity", "[model][kinematics][fk]") 
     tree.add_link(base);
 
     Eigen::VectorXd q(0);  // No joints
-    tree.set_configuration(q);
-    tree.compute_forward_kinematics();
-
-    SE3 T_base = tree.link_pose(0);
+    SE3 T_base = tree.compute_link_pose(q, 0);
     REQUIRE(T_base.isApprox(SE3::Identity()));
 }
 
@@ -152,11 +130,8 @@ TEST_CASE("KinematicTree: FK 2-link planar arm (zero config)", "[model][kinemati
     Eigen::VectorXd q(2);
     q << 0, 0;
 
-    tree.set_configuration(q);
-    tree.compute_forward_kinematics();
-
     // Link2 should be at (1.5, 0, 0)
-    SE3 T_link2 = tree.link_pose(2);
+    SE3 T_link2 = tree.compute_link_pose(q, 2);
     Eigen::Vector3d pos = T_link2.translation();
 
     REQUIRE_THAT(pos(0), Catch::Matchers::WithinAbs(1.5, 1e-10));
@@ -190,16 +165,13 @@ TEST_CASE("KinematicTree: FK 2-link planar arm (90° elbow)", "[model][kinematic
     Eigen::VectorXd q(2);
     q << 0, M_PI / 2;
 
-    tree.set_configuration(q);
-    tree.compute_forward_kinematics();
-
     // Link1 at (1.0, 0, 0)
-    SE3 T_link1 = tree.link_pose(1);
+    SE3 T_link1 = tree.compute_link_pose(q, 1);
     Eigen::Vector3d pos1 = T_link1.translation();
     REQUIRE_THAT(pos1(0), Catch::Matchers::WithinAbs(1.0, 1e-10));
 
     // Link2 at (1.0, 0.5, 0) due to 90° bend
-    SE3 T_link2 = tree.link_pose(2);
+    SE3 T_link2 = tree.compute_link_pose(q, 2);
     Eigen::Vector3d pos2 = T_link2.translation();
     REQUIRE_THAT(pos2(0), Catch::Matchers::WithinAbs(1.0, 1e-10));
     REQUIRE_THAT(pos2(1), Catch::Matchers::WithinAbs(0.5, 1e-10));
@@ -231,10 +203,7 @@ TEST_CASE("KinematicTree: FK 2-link planar arm (both joints 45°)", "[model][kin
     Eigen::VectorXd q(2);
     q << M_PI / 4, M_PI / 4;
 
-    tree.set_configuration(q);
-    tree.compute_forward_kinematics();
-
-    SE3 T_link2 = tree.link_pose(2);
+    SE3 T_link2 = tree.compute_link_pose(q, 2);
     Eigen::Vector3d pos = T_link2.translation();
 
     // With both at 45°, total angle = 90°
@@ -243,61 +212,6 @@ TEST_CASE("KinematicTree: FK 2-link planar arm (both joints 45°)", "[model][kin
     double sqrt2_2 = std::sqrt(2.0) / 2.0;
     REQUIRE_THAT(pos(0), Catch::Matchers::WithinAbs(sqrt2_2, 1e-4));
     REQUIRE_THAT(pos(1), Catch::Matchers::WithinAbs(sqrt2_2 + 1.0, 1e-4));
-}
-
-// ============================================================================
-// Error Handling
-// ============================================================================
-
-TEST_CASE("KinematicTree: FK on invalid tree throws", "[model][kinematics][error]") {
-    KinematicTree tree;
-
-    Link base("base");
-    Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
-
-    tree.add_link(base);
-    tree.add_joint(joint1);
-    // Missing link!
-
-    Eigen::VectorXd q(1);
-    q << 0;
-    tree.set_configuration(q);
-
-    REQUIRE_THROWS_AS(tree.compute_forward_kinematics(), std::runtime_error);
-}
-
-TEST_CASE("KinematicTree: FK before set_configuration throws", "[model][kinematics][error]") {
-    KinematicTree tree;
-
-    Link base("base");
-    Link link1("link1");
-    Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
-
-    tree.add_link(base);
-    tree.add_joint(joint1);
-    tree.add_link(link1);
-
-    // Don't set configuration!
-    REQUIRE_THROWS_AS(tree.compute_forward_kinematics(), std::runtime_error);
-}
-
-TEST_CASE("KinematicTree: link_pose before FK throws", "[model][kinematics][error]") {
-    KinematicTree tree;
-
-    Link base("base");
-    Link link1("link1");
-    Joint joint1("joint1", JointType::REVOLUTE, 0, 1);
-
-    tree.add_link(base);
-    tree.add_joint(joint1);
-    tree.add_link(link1);
-
-    Eigen::VectorXd q(1);
-    q << 0;
-    tree.set_configuration(q);
-
-    // Call link_pose before compute_forward_kinematics
-    REQUIRE_THROWS_AS(tree.link_pose(1), std::runtime_error);
 }
 
 // ============================================================================
@@ -324,10 +238,7 @@ TEST_CASE("KinematicTree: FK with axis direction", "[model][kinematics][industri
     Eigen::VectorXd q(1);
     q << M_PI / 4;  // +45°
 
-    tree.set_configuration(q);
-    tree.compute_forward_kinematics();
-
-    SE3 T = tree.link_pose(1);
+    SE3 T = tree.compute_link_pose(q, 1);
 
     // With axis_direction=-1, joint rotates by -45°
     // Link at (cos(-45°), sin(-45°), 0) * 1.0 = (0.707, -0.707, 0)
@@ -371,13 +282,10 @@ TEST_CASE("KinematicTree: FK with J2-J3 coupling (Fanuc style)", "[model][kinema
     Eigen::VectorXd q(3);
     q << 0, M_PI/6, M_PI/4;  // 0°, 30°, 45°
 
-    tree.set_configuration(q);
-    tree.compute_forward_kinematics();
-
     // J3 effective = J3_input + coupling_coef * J2 = 45° + (-1)*30° = 15°
     // Total angle at Link3 = J2 + J3_effective = 30° + 15° = 45°
 
-    SE3 T3 = tree.link_pose(3);
+    SE3 T3 = tree.compute_link_pose(q, 3);
 
     // Link1: 1.0 along X → (1, 0, 0)
     // Link2: 0.5 at 30° → (1 + 0.5*cos(30°), 0.5*sin(30°), 0) = (1.433, 0.25, 0)
