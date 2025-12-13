@@ -74,6 +74,14 @@ Eigen::Vector3d SE3::operator*(const Eigen::Vector3d& p) const {
     return result.head<3>();
 }
 
+void SE3::set_translation(const Eigen::Vector3d& p) {
+    g_.block<3, 1>(0, 3) = p;
+}
+
+void SE3::set_rotation(const Eigen::Matrix3d& R) {
+    g_.block<3, 3>(0, 0) = R;
+}
+
 SE3 SE3::inverse() const {
     Eigen::Matrix3d R = g_.block<3, 3>(0, 0);
     Eigen::Vector3d p = g_.block<3, 1>(0, 3);

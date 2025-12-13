@@ -93,6 +93,16 @@ public:
     Eigen::Vector3d translation() const { return g_.block<3, 1>(0, 3); }
 
     /**
+     * @brief Set translation part
+     */
+    void set_translation(const Eigen::Vector3d& p);
+
+    /**
+     * @brief Set rotation part
+     */
+    void set_rotation(const Eigen::Matrix3d& R);
+
+    /**
      * @brief Decompose into rotation and translation
      */
     void decompose(Eigen::Matrix3d& R, Eigen::Vector3d& p) const;

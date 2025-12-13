@@ -39,6 +39,10 @@ void bind_math(py::module_& m) {
         .def("matrix", &SE3::matrix)
         .def("rotation", &SE3::rotation)
         .def("translation", &SE3::translation)
+        .def("set_translation", &SE3::set_translation, py::arg("p"),
+             "Set translation vector")
+        .def("set_rotation", &SE3::set_rotation, py::arg("R"),
+             "Set rotation matrix")
         .def("so3", &SE3::so3)
         .def("rpy", &SE3::rpy)
         .def("inverse", &SE3::inverse)

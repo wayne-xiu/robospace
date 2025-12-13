@@ -101,10 +101,14 @@ private:
     SearchParams search_params_;
     double position_tolerance_ = 1e-4;       ///< Position convergence tolerance
     double orientation_tolerance_ = 1e-3;    ///< Orientation convergence tolerance
-    double base_damping_ = 0.1;              ///< Base damping factor (increased for stability)
+    double base_damping_ = 0.01;             ///< Base damping factor (DLS λ)
     double step_size_ = 1.0;                 ///< Joint update step size
     double error_gain_ = 1.0;                ///< Error scaling gain
     IKMode mode_ = IKMode::FULL_POSE;        ///< Solver mode
+
+    // Conservative per-joint clamp on the update step (helps avoid divergence).
+    // Units: radians for revolute joints, meters for prismatic joints.
+    double max_joint_step_ = 0.5;
 
     /**
      * @brief Single IK attempt from given seed
@@ -135,9 +139,12 @@ private:
     /**
      * @brief Compute pose error vector
      *
-     * Error = [position_error; orientation_error]
-     * - position_error = target_pos - current_pos (3×1)
-     * - orientation_error = log(R_current^T * R_target) (3×1, axis-angle)
+     * IMPORTANT CONVENTION:
+     * Robospace Jacobians are ordered as [ω; v] (angular first, then linear).
+     * This solver therefore uses error = [orientation_error; position_error].
+     *
+     * - orientation_error = log(R_current^T * R_target) (3×1, axis-angle), expressed in base frame
+     * - position_error = target_pos - current_pos (3×1), expressed in base frame
      *
      * @param current Current end-effector pose
      * @param target Target end-effector pose

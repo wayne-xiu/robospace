@@ -131,7 +131,7 @@ TEST_CASE("IK UR5: Reachable target position", "[ik][ur5]") {
 
     // Create a reachable target within UR5 workspace
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 0.4, 0.2, 0.3;  // Typical reachable position for UR5
+    T_target.set_translation(Eigen::Vector3d(0.4, 0.2, 0.3));  // Typical reachable position for UR5
 
     Eigen::VectorXd q_seed = Eigen::VectorXd::Zero(6);
     IKResult result = solver.solve(T_target, q_seed);
@@ -205,7 +205,7 @@ TEST_CASE("IK UR5: Multiple solutions exist", "[ik][ur5][solutions]") {
 
     // Set a target position
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 0.5, 0.2, 0.4;
+    T_target.set_translation(Eigen::Vector3d(0.5, 0.2, 0.4));
 
     // Try different seeds - should converge to potentially different solutions
     std::vector<Eigen::VectorXd> seeds = {
@@ -253,7 +253,7 @@ TEST_CASE("IK UR5: Performance with 6DOF", "[ik][ur5][performance][!benchmark]")
     solver.set_mode(IKMode::POSITION_ONLY);
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 0.4, 0.2, 0.3;
+    T_target.set_translation(Eigen::Vector3d(0.4, 0.2, 0.3));
     Eigen::VectorXd q_seed = Eigen::VectorXd::Zero(6);
 
     auto start = std::chrono::high_resolution_clock::now();
