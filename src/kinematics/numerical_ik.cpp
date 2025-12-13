@@ -92,8 +92,6 @@ IKResult NumericalIKSolver::solve_single_attempt(
     const Eigen::VectorXd& q_seed,
     int max_iterations) {
 
-    const int dof = robot_.dof();
-
     // Initialize solution with seed
     Eigen::VectorXd q = q_seed;
 
@@ -130,15 +128,17 @@ IKResult NumericalIKSolver::solve_single_attempt(
 
         switch (mode_) {
             case IKMode::POSITION_ONLY:
-                // Use only position rows (0:3)
-                J_reduced = J.topRows(3);
-                error_reduced = error.head(3);
+                // Robospace Jacobian convention is [ω; v]. For POSITION_ONLY,
+                // we minimize linear position error and use linear velocity rows.
+                J_reduced = J.bottomRows(3);
+                error_reduced = error.tail(3);
                 break;
 
             case IKMode::ORIENTATION_ONLY:
-                // Use only orientation rows (3:6)
-                J_reduced = J.bottomRows(3);
-                error_reduced = error.tail(3);
+                // Robospace Jacobian convention is [ω; v]. For ORIENTATION_ONLY,
+                // we minimize angular error and use angular velocity rows.
+                J_reduced = J.topRows(3);
+                error_reduced = error.head(3);
                 break;
 
             case IKMode::FULL_POSE:
@@ -152,28 +152,73 @@ IKResult NumericalIKSolver::solve_single_attempt(
         // Scale error by gain before solving
         Eigen::VectorXd error_scaled = error_gain_ * error_reduced;
 
-        // Compute damping (adaptive or constant)
+        // Compute initial damping (adaptive or constant)
         double damping = search_params_.use_adaptive_damping
             ? compute_adaptive_damping(error_reduced)
             : base_damping_;
 
-        // Compute damped least squares step
-        Eigen::VectorXd dq = compute_dls_step(J_reduced, error_scaled, damping);
+        // Levenberg-Marquardt-style acceptance:
+        // Increase damping until the step improves the reduced error norm.
+        const double current_error_norm = error_reduced.norm();
+        double lambda = damping;
+        Eigen::VectorXd dq;
+        bool accepted = false;
 
-        // Check for NaN or infinite values
-        if (!dq.allFinite()) {
+        for (int attempt = 0; attempt < 10; ++attempt) {
+            dq = compute_dls_step(J_reduced, error_scaled, lambda);
+
+            if (!dq.allFinite()) {
+                break;
+            }
+
+            // Clamp per-joint update to avoid divergence / overshoot.
+            for (int i = 0; i < dq.size(); ++i) {
+                if (dq(i) > max_joint_step_) dq(i) = max_joint_step_;
+                if (dq(i) < -max_joint_step_) dq(i) = -max_joint_step_;
+            }
+
+            Eigen::VectorXd q_candidate = q + step_size_ * dq;
+
+            // Evaluate candidate error (reduced according to mode)
+            math::SE3 candidate_pose = robot_.fk(q_candidate);
+            Eigen::VectorXd candidate_error = compute_pose_error(candidate_pose, target);
+
+            Eigen::VectorXd candidate_error_reduced;
+            switch (mode_) {
+                case IKMode::POSITION_ONLY:
+                    candidate_error_reduced = candidate_error.tail(3);
+                    break;
+                case IKMode::ORIENTATION_ONLY:
+                    candidate_error_reduced = candidate_error.head(3);
+                    break;
+                case IKMode::FULL_POSE:
+                default:
+                    candidate_error_reduced = candidate_error;
+                    break;
+            }
+
+            const double candidate_norm = candidate_error_reduced.norm();
+            if (candidate_norm < current_error_norm) {
+                q = q_candidate;
+                result.final_error = candidate_norm;
+                accepted = true;
+                break;
+            }
+
+            // Not improved: increase damping and retry (more conservative step)
+            lambda *= 10.0;
+        }
+
+        if (!accepted) {
             result.success = false;
             result.q_solution = q;
-            result.final_error = error_reduced.norm();
-            result.message = "IK solver encountered NaN or infinite values";
+            result.final_error = current_error_norm;
+            result.message = "IK solver failed to find an improving step";
             return result;
         }
 
-        // Update joint configuration
-        q += step_size_ * dq;
-
         // Store current error for the reduced problem
-        result.final_error = error_reduced.norm();
+        // (already updated on acceptance)
     }
 
     // Max iterations reached without convergence
@@ -206,12 +251,12 @@ Eigen::VectorXd NumericalIKSolver::compute_pose_error(
 
     Eigen::VectorXd error(6);
 
-    // Position error: target - current (in base frame)
-    Eigen::Vector3d position_error = target.translation() - current.translation();
-    error.head(3) = position_error;
+    // IMPORTANT CONVENTION:
+    // Robospace Jacobians are ordered as [ω; v] (angular velocity first, then linear).
+    // To stay consistent, the pose error vector must also be ordered as [ω_error; p_error].
 
     // Orientation error using axis-angle representation
-    // We want the error that brings us from current to target rotation
+    // We want the error that brings us from current to target rotation:
     // R_target = R_current * R_error  =>  R_error = R_current^T * R_target
     Eigen::Matrix3d R_current = current.rotation();
     Eigen::Matrix3d R_target = target.rotation();
@@ -225,15 +270,26 @@ Eigen::VectorXd NumericalIKSolver::compute_pose_error(
     // Transform the orientation error from EE frame to base frame
     // ω_base = R_current * ω_ee
     Eigen::Vector3d orientation_error = R_current * orientation_error_log.vector();
-    error.tail(3) = orientation_error;
+
+    // Position error: target - current (in base frame)
+    Eigen::Vector3d position_error = target.translation() - current.translation();
+
+    // Order as [ω; p]
+    // NOTE: assign element-wise to avoid Eigen vectorization over-reads on Vector3d -> VectorXd blocks
+    error(0) = orientation_error.x();
+    error(1) = orientation_error.y();
+    error(2) = orientation_error.z();
+    error(3) = position_error.x();
+    error(4) = position_error.y();
+    error(5) = position_error.z();
 
     return error;
 }
 
 bool NumericalIKSolver::check_convergence(const Eigen::VectorXd& error) const {
-    // Extract position and orientation errors
-    const Eigen::Vector3d pos_error = error.head(3);
-    const Eigen::Vector3d ori_error = error.tail(3);
+    // Error convention: [ω_error; p_error]
+    const Eigen::Vector3d ori_error = error.head(3);
+    const Eigen::Vector3d pos_error = error.tail(3);
 
     const double pos_norm = pos_error.norm();
     const double ori_norm = ori_error.norm();
@@ -262,22 +318,26 @@ Eigen::VectorXd NumericalIKSolver::compute_dls_step(
     const int n = J.cols();  // Joint space dimension
 
     // Damped Least Squares (Levenberg-Marquardt):
-    // Δq = (J^TJ + λ²I)^(-1) J^T * e
+    // Two common equivalent forms (with damping λ):
+    // - If m <= n (common in robotics, underdetermined): Δq = J^T (J J^T + λ² I_m)^(-1) e
+    // - If m >  n (overdetermined):                    Δq = (J^T J + λ² I_n)^(-1) J^T e
     //
-    // This formulation is more numerically stable than J^T(JJ^T + λ²I)^(-1)
-    // when m < n (underdetermined systems, common in robotics)
+    // We choose based on dimensions for numerical stability and performance.
 
+    const double lambda2 = damping * damping;
+
+    if (m <= n) {
+        // Δq = J^T (J J^T + λ² I)^(-1) e
+        Eigen::MatrixXd A = (J * J.transpose()) + lambda2 * Eigen::MatrixXd::Identity(m, m);
+        Eigen::VectorXd y = A.ldlt().solve(error);
+        return J.transpose() * y;
+    }
+
+    // Δq = (J^T J + λ² I)^(-1) J^T e
     Eigen::MatrixXd JTJ = J.transpose() * J;
-    Eigen::MatrixXd A = JTJ + damping * damping * Eigen::MatrixXd::Identity(n, n);
-
-    // Compute J^T * error
+    Eigen::MatrixXd A = JTJ + lambda2 * Eigen::MatrixXd::Identity(n, n);
     Eigen::VectorXd JT_error = J.transpose() * error;
-
-    // Solve: (J^TJ + λ²I) * dq = J^T * e
-    // Use LDLT decomposition for positive semi-definite matrices
-    Eigen::VectorXd dq = A.ldlt().solve(JT_error);
-
-    return dq;
+    return A.ldlt().solve(JT_error);
 }
 
 double NumericalIKSolver::compute_adaptive_damping(

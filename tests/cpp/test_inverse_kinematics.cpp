@@ -101,7 +101,7 @@ TEST_CASE("IK Solver: Reachable target position", "[ik][reachable]") {
 
     // Create a reachable target (within workspace: L1+L2 = 1.8m)
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.5, 0.0;  // Reachable position
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.5, 0.0));  // Reachable position
 
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
     IKResult result = solver.solve(T_target, q_seed);
@@ -130,7 +130,7 @@ TEST_CASE("IK Solver: Reachable target with random restart", "[ik][random_restar
 
     // Same target that fails without random restart
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.5, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.5, 0.0));
 
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
     IKResult result = solver.solve(T_target, q_seed);
@@ -151,7 +151,7 @@ TEST_CASE("IK Solver: Unreachable target (too far)", "[ik][unreachable]") {
 
     // Create an unreachable target (beyond workspace: L1+L2 = 1.8m)
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 5.0, 0.0, 0.0;  // Way too far
+    T_target.set_translation(Eigen::Vector3d(5.0, 0.0, 0.0));  // Way too far
 
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
     IKResult result = solver.solve(T_target, q_seed);
@@ -171,7 +171,7 @@ TEST_CASE("IK Solver: Different seed configurations", "[ik][seed]") {
     IKSolver solver(robot);
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.8, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.8, 0.0));
 
     // Try different seeds - should converge to valid solution
     std::vector<Eigen::Vector2d> seeds = {
@@ -206,7 +206,7 @@ TEST_CASE("IK Solver: Custom tolerances", "[ik][config]") {
     solver.set_max_iterations(1000);
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.2, 0.6, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.2, 0.6, 0.0));
 
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
     IKResult result = solver.solve(T_target, q_seed);
@@ -224,7 +224,7 @@ TEST_CASE("IK Solver: Position-only mode", "[ik][position_only]") {
     solver.set_position_tolerance(1e-3);  // Practical tolerance
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.5, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.5, 0.0));
 
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
     IKResult result = solver.solve(T_target, q_seed);
@@ -242,7 +242,7 @@ TEST_CASE("IK Solver: Iteration count tracking", "[ik][iterations]") {
     IKSolver solver(robot);
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.0, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.0, 0.0));
 
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
     IKResult result = solver.solve(T_target, q_seed);
@@ -274,7 +274,7 @@ TEST_CASE("IK Solver: Damping factor", "[ik][damping]") {
     std::vector<double> damping_values = {0.005, 0.01, 0.05};
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.5, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.5, 0.0));
 
     for (double damping : damping_values) {
         solver.set_damping(damping);
@@ -293,7 +293,7 @@ TEST_CASE("IK Solver: Near-singular configuration", "[ik][singular]") {
 
     // Target near singularity (arm stretched out)
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.79, 0.0, 0.0;  // Almost at max reach (1.8)
+    T_target.set_translation(Eigen::Vector3d(1.79, 0.0, 0.0));  // Almost at max reach (1.8)
 
     // Increase damping to handle near-singularity
     solver.set_damping(0.1);
@@ -313,7 +313,7 @@ TEST_CASE("IK Solver: Performance benchmark", "[ik][performance][!benchmark]") {
     IKSolver solver(robot);
 
     SE3 T_target = SE3::Identity();
-    T_target.translation() << 1.0, 0.5, 0.0;
+    T_target.set_translation(Eigen::Vector3d(1.0, 0.5, 0.0));
     Eigen::VectorXd q_seed = Eigen::Vector2d::Zero();
 
     auto start = std::chrono::high_resolution_clock::now();

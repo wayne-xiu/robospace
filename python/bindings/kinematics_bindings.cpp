@@ -31,10 +31,14 @@ void bind_kinematics(py::module_& m) {
                       "Joint configuration solution")
         .def_readwrite("iterations", &IKResult::iterations,
                       "Number of iterations used")
+        .def_readwrite("searches", &IKResult::searches,
+                      "Number of random restart searches (numerical solver only)")
         .def_readwrite("final_error", &IKResult::final_error,
                       "Final pose error (position + orientation)")
         .def_readwrite("message", &IKResult::message,
                       "Optional status/error message")
+        .def_readwrite("from_analytical", &IKResult::from_analytical,
+                      "True if solution came from an analytical solver")
         .def("__repr__", [](const IKResult& self) {
             std::string status = self.success ? "SUCCESS" : "FAILED";
             return "<IKResult " + status +
