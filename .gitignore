@@ -45,6 +45,7 @@ pip-log.txt
 # Documentation
 docs/build/
 docs/_build/
+docs/nopub/
 *.doxygen_sqlite3
 html/
 latex/

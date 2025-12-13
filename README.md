@@ -88,19 +88,17 @@ m = robot.manipulability(q)     # Singularity measure
 ## Development Status
 
 **Phase 1 ✅ COMPLETE**: Foundation - Math library, robot model, kinematics, Python bindings
-- All 305 tests passing (298 C++ + 7 Python)
+- All tests passing (**282 C++ + 6 Python**)
 - Production-ready for FK, Jacobians, URDF loading
 - Full Python/NumPy integration with Lie algebra support
 
 **Phase 2 (Next)**: Inverse kinematics, dynamics, trajectory planning
 
-See [docs/PHASE1.md](docs/PHASE1.md) for comprehensive Phase 1 summary and [docs/DESIGN.md](docs/DESIGN.md) for architecture.
+Developer docs live in `docs/nopub/` (excluded from git). See **Development Status** above for the supported feature set.
 
 ## Documentation
 
-- [Phase 1 Complete Summary](docs/PHASE1.md) - Comprehensive overview of Phase 1
-- [Architecture Design](docs/DESIGN.md) - High-level architecture and roadmap
-- [C++/Python Implementation Guide](docs/cpp-python-architecture.md) - Technical details
+- **Public docs**: This `README.md`
 
 ## References
 
