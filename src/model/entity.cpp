@@ -11,16 +11,24 @@ Entity::Entity(const std::string& name, Type type, Entity* parent)
     }
 }
 
-void Entity::set_parent(Entity* new_parent) {
-    // Remove from old parent's children list
+Entity::~Entity() {
     if (parent_ != nullptr) {
         parent_->remove_child(this);
     }
 
-    // Set new parent
+    for (auto* child : children_) {
+        child->parent_ = nullptr;
+    }
+    children_.clear();
+}
+
+void Entity::set_parent(Entity* new_parent) {
+    if (parent_ != nullptr) {
+        parent_->remove_child(this);
+    }
+
     parent_ = new_parent;
 
-    // Add to new parent's children list
     if (parent_ != nullptr) {
         parent_->add_child(this);
     }

@@ -1,0 +1,10 @@
+{
+  "$schema": "../../schemas/robot-config.schema.json",
+  "name": "UR5",
+  "model": "UR5.urdf",
+  "base_frame": {
+    "xyz": [0, 0, 0],
+    "rpy": [0, 0, -180]
+  },
+  "home": [0, -90, -90, 0, 90, 0]
+}

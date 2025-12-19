@@ -21,6 +21,7 @@ public:
     explicit Robot(const std::string& name, Entity* parent = nullptr);
     static Robot from_urdf(const std::string& urdf_path);
     static Robot from_urdf_string(const std::string& urdf_string);
+    static Robot from_config(const std::string& config_path);
 
     void add_link(const Link& link);
     void add_joint(const Joint& joint);
@@ -66,9 +67,13 @@ public:
     // Manipulability measure (Yoshikawa) - higher values indicate better dexterity
     double manipulability(const Eigen::VectorXd& q) const;
 
-    // Base frame
-    void set_base(const math::SE3& base);
-    const math::SE3& base() const { return base_frame_; }
+    // Base frame (start of kinematic chain)
+    void set_base_pose(const math::SE3& pose);
+    const Frame& base_frame() const { return base_frame_; }
+
+    // Flange frame (end of kinematic chain, tool attachment point)
+    void set_flange_pose(const math::SE3& pose);
+    const Frame& flange_frame() const { return flange_frame_; }
 
     // Tool management
     int add_tool(const Tool& tool);
@@ -95,7 +100,8 @@ public:
 
 private:
     KinematicTree tree_;
-    math::SE3 base_frame_ = math::SE3::Identity();
+    Frame base_frame_;    // Start of kinematic chain (pose includes REP-103 correction if needed)
+    Frame flange_frame_;  // End of kinematic chain (tool attachment point)
     std::vector<Tool> tools_;
     int active_tool_id_ = -1;
     Eigen::VectorXd q_;                // Joint configuration (stateful)

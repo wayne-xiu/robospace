@@ -21,7 +21,7 @@ public:
     enum class Type { FRAME, LINK, ROBOT, TOOL, TARGET };
 
     Entity(const std::string& name, Type type, Entity* parent = nullptr);
-    virtual ~Entity() = default;
+    virtual ~Entity();
 
     // Identification
     const std::string& name() const { return name_; }

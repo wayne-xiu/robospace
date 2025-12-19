@@ -168,13 +168,13 @@ TEST_CASE("Robot: joint_limits()", "[robot]") {
 TEST_CASE("Robot: Base frame", "[robot]") {
     Robot robot = create_2dof_robot();
 
-    REQUIRE(robot.base().isApprox(SE3::Identity(), 1e-10));
+    REQUIRE(robot.base_frame().pose().isApprox(SE3::Identity(), 1e-10));
 
     SE3 base_offset = SE3::Translation(Eigen::Vector3d(0, 0, -0.525));
-    robot.set_base(base_offset);
+    robot.set_base_pose(base_offset);
 
-    REQUIRE(robot.base().isApprox(base_offset, 1e-10));
-    REQUIRE_THAT(robot.base().translation().z(),
+    REQUIRE(robot.base_frame().pose().isApprox(base_offset, 1e-10));
+    REQUIRE_THAT(robot.base_frame().pose().translation().z(),
                  Catch::Matchers::WithinAbs(-0.525, 1e-10));
 }
 

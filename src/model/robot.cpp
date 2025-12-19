@@ -1,12 +1,18 @@
 #include <robospace/model/robot.hpp>
 #include <robospace/model/urdf_parser.hpp>
+#include <robospace/math/SO3.hpp>
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include <stdexcept>
+#include <filesystem>
 
 namespace robospace {
 namespace model {
 
 Robot::Robot(const std::string& name, Entity* parent)
-    : Entity(name, Entity::Type::ROBOT, parent) {}
+    : Entity(name, Entity::Type::ROBOT, parent),
+      base_frame_(name + "_base"),
+      flange_frame_(name + "_flange") {}
 
 int Robot::dof() const {
     int count = 0;
@@ -48,14 +54,15 @@ void Robot::set_home(const Eigen::VectorXd& q) {
 }
 
 // Forward kinematics (stateless)
+// FK = base_frame_.pose() * chain_fk * flange_frame_.pose() [* tool_tcp if active]
 math::SE3 Robot::fk(const Eigen::VectorXd& q) const {
     if (num_links() == 0) {
-        return base_frame_;
+        return base_frame_.pose();
     }
 
     int flange_id = num_links() - 1;
-    math::SE3 flange_pose = tree_.compute_link_pose(q, flange_id);
-    math::SE3 tcp_pose = base_frame_ * flange_pose;
+    math::SE3 chain_fk = tree_.compute_link_pose(q, flange_id);
+    math::SE3 tcp_pose = base_frame_.pose() * chain_fk * flange_frame_.pose();
 
     if (has_active_tool()) {
         tcp_pose = tcp_pose * active_tool().tcp_pose();
@@ -77,13 +84,13 @@ math::SE3 Robot::fk(const Eigen::VectorXd& q, int link_id) const {
         throw std::out_of_range("Link ID out of range");
     }
     math::SE3 link_pose = tree_.compute_link_pose(q, link_id);
-    return base_frame_ * link_pose;
+    return base_frame_.pose() * link_pose;
 }
 
 std::vector<math::SE3> Robot::fk_all(const Eigen::VectorXd& q) const {
     std::vector<math::SE3> poses = tree_.compute_forward_kinematics(q);
     for (auto& pose : poses) {
-        pose = base_frame_ * pose;
+        pose = base_frame_.pose() * pose;
     }
     return poses;
 }
@@ -120,7 +127,7 @@ std::vector<math::SE3> Robot::current_pose_all() const {
 // Differential kinematics
 Eigen::MatrixXd Robot::jacob0(const Eigen::VectorXd& q) const {
     Eigen::MatrixXd J_tree = tree_.compute_jacobian_base(q);
-    return base_frame_.adjoint() * J_tree;
+    return base_frame_.pose().adjoint() * J_tree;
 }
 
 Eigen::MatrixXd Robot::jacobe(const Eigen::VectorXd& q) const {
@@ -148,8 +155,12 @@ Eigen::MatrixXd Robot::jacobe() const {
     return jacobe(q_);
 }
 
-void Robot::set_base(const math::SE3& base) {
-    base_frame_ = base;
+void Robot::set_base_pose(const math::SE3& pose) {
+    base_frame_.set_pose(pose);
+}
+
+void Robot::set_flange_pose(const math::SE3& pose) {
+    flange_frame_.set_pose(pose);
 }
 
 int Robot::add_tool(const Tool& tool) {
@@ -275,6 +286,95 @@ Robot Robot::from_urdf(const std::string& urdf_path) {
 
 Robot Robot::from_urdf_string(const std::string& urdf_string) {
     return URDFParser::parse_string(urdf_string);
+}
+
+Robot Robot::from_config(const std::string& config_path) {
+    using json = nlohmann::json;
+    namespace fs = std::filesystem;
+
+    constexpr double deg2rad = M_PI / 180.0;
+    constexpr double mm2m = 0.001;
+
+    // Read and parse JSON config
+    std::ifstream file(config_path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Cannot open config file: " + config_path);
+    }
+    json config = json::parse(file);
+
+    // Get config directory for resolving relative paths
+    fs::path config_dir = fs::path(config_path).parent_path();
+
+    // Load model (URDF)
+    if (!config.contains("model")) {
+        throw std::runtime_error("Invalid config: missing 'model' field");
+    }
+    fs::path model_path = config_dir / config["model"].get<std::string>();
+    Robot robot = Robot::from_urdf(model_path.string());
+
+    // Override name if specified
+    if (config.contains("name")) {
+        robot.set_name(config["name"].get<std::string>());
+    }
+
+    // Helper to parse frame pose (xyz in mm, rpy in degrees)
+    auto parse_frame_pose = [&](const json& frame) -> math::SE3 {
+        Eigen::Vector3d xyz = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+
+        if (frame.contains("xyz")) {
+            auto xyz_arr = frame["xyz"].get<std::vector<double>>();
+            if (xyz_arr.size() == 3) {
+                // Convert mm to meters
+                xyz = Eigen::Vector3d(xyz_arr[0], xyz_arr[1], xyz_arr[2]) * mm2m;
+            }
+        }
+
+        if (frame.contains("rpy")) {
+            auto rpy_arr = frame["rpy"].get<std::vector<double>>();
+            if (rpy_arr.size() == 3) {
+                // Convert degrees to radians
+                // RPY convention: R = Rz(yaw) * Ry(pitch) * Rx(roll)
+                double roll = rpy_arr[0] * deg2rad;
+                double pitch = rpy_arr[1] * deg2rad;
+                double yaw = rpy_arr[2] * deg2rad;
+                rot = math::SO3::RotZ(yaw).matrix() *
+                      math::SO3::RotY(pitch).matrix() *
+                      math::SO3::RotX(roll).matrix();
+            }
+        } else if (frame.contains("quaternion")) {
+            auto q = frame["quaternion"].get<std::vector<double>>();
+            if (q.size() == 4) {
+                // Quaternion [w, x, y, z]
+                Eigen::Quaterniond quat(q[0], q[1], q[2], q[3]);
+                rot = quat.normalized().toRotationMatrix();
+            }
+        }
+
+        return math::SE3(rot, xyz);
+    };
+
+    // Apply base_frame pose (REP-103 correction)
+    if (config.contains("base_frame")) {
+        robot.set_base_pose(parse_frame_pose(config["base_frame"]));
+    }
+
+    // Apply flange_frame pose
+    if (config.contains("flange_frame")) {
+        robot.set_flange_pose(parse_frame_pose(config["flange_frame"]));
+    }
+
+    // Set home configuration (degrees to radians)
+    if (config.contains("home")) {
+        auto home_arr = config["home"].get<std::vector<double>>();
+        Eigen::VectorXd home(home_arr.size());
+        for (size_t i = 0; i < home_arr.size(); ++i) {
+            home(i) = home_arr[i] * deg2rad;
+        }
+        robot.set_home(home);
+    }
+
+    return robot;
 }
 
 double Robot::manipulability(const Eigen::VectorXd& q) const {

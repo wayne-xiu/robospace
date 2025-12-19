@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://robospace.dev/schemas/robot-config-v1.json",
+  "title": "RoboSpace Robot Configuration",
+  "description": "Configuration file for loading robots from URDF with frame corrections. Units: length in mm, angles in degrees.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema for IDE support"
+    },
+    "name": {
+      "type": "string",
+      "description": "Robot name identifier"
+    },
+    "model": {
+      "type": "string",
+      "description": "Path to URDF/model file (relative to this config file)"
+    },
+    "base_frame": {
+      "$ref": "#/$defs/frame",
+      "description": "Transform from world to robot base. Use for REP-103 corrections or robot placement."
+    },
+    "flange_frame": {
+      "$ref": "#/$defs/frame",
+      "description": "Transform from last link to tool flange. Usually identity."
+    },
+    "flange_link": {
+      "type": "string",
+      "description": "Name of the flange/tool0 link in URDF. Auto-detected if not specified."
+    },
+    "home": {
+      "type": "array",
+      "items": { "type": "number" },
+      "description": "Home/zero position in degrees"
+    }
+  },
+  "required": ["name", "model"],
+  "additionalProperties": false,
+  "$defs": {
+    "frame": {
+      "type": "object",
+      "description": "6-DOF frame pose. Units: xyz in mm, angles in degrees.",
+      "properties": {
+        "xyz": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [0, 0, 0],
+          "description": "Translation [x, y, z] in mm"
+        },
+        "rpy": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [0, 0, 0],
+          "description": "Rotation [roll, pitch, yaw] in degrees. Applied as Rz(yaw) * Ry(pitch) * Rx(roll)."
+        },
+        "quaternion": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "Rotation as quaternion [w, x, y, z]. Alternative to rpy."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
