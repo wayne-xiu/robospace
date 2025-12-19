@@ -16,7 +16,9 @@ namespace model {
  */
 class Frame : public Entity {
 public:
-    explicit Frame(const std::string& name, const math::SE3& pose = math::SE3::Identity());
+    explicit Frame(const std::string& name,
+                   const math::SE3& pose = math::SE3::Identity(),
+                   Entity* parent = nullptr);
 
     // Inherits from Entity: name(), parent(), pose(), pose_world(), etc.
 
@@ -24,7 +26,7 @@ public:
         set_pose(pose() * delta_transform);
     }
 
-    bool is_root() const { return parent() == nullptr; }
+    // is_root() inherited from Entity
 };
 
 } // namespace model

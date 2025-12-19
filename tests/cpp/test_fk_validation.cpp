@@ -189,7 +189,7 @@ Robot create_fanuc_m20ia_mdh() {
     robot.add_joint(std::move(j6));
 
     // Base frame at z=-525mm (reference frame is at J1 height)
-    robot.set_base(SE3(Eigen::Matrix3d::Identity(), Eigen::Vector3d(0, 0, -0.525)));
+    robot.set_base_pose(SE3(Eigen::Matrix3d::Identity(), Eigen::Vector3d(0, 0, -0.525)));
 
     return robot;
 }
@@ -394,7 +394,7 @@ Robot create_yaskawa_gp12_mdh() {
     robot.add_joint(std::move(j6));
 
     // Base frame at z=-450mm (reference frame is at J1 height)
-    robot.set_base(SE3(Eigen::Matrix3d::Identity(), Eigen::Vector3d(0, 0, -0.450)));
+    robot.set_base_pose(SE3(Eigen::Matrix3d::Identity(), Eigen::Vector3d(0, 0, -0.450)));
 
     return robot;
 }
@@ -918,4 +918,268 @@ TEST_CASE("FK Validation: Yaskawa GP12 zero config", "[fk][validation][yaskawa]"
     REQUIRE_THAT(pos.x(), Catch::Matchers::WithinAbs(0.895, 0.01));
     REQUIRE_THAT(pos.y(), Catch::Matchers::WithinAbs(0.0, 0.01));
     REQUIRE_THAT(pos.z(), Catch::Matchers::WithinAbs(0.814, 0.01));
+}
+
+// =============================================================================
+// URDF-based FK Validation Tests (Phase 3AA)
+// =============================================================================
+
+/**
+ * Helper: Expand DOF-sized config to full joint config (including fixed joints).
+ * This is needed because URDF robots have fixed joints that the FK expects.
+ */
+Eigen::VectorXd expand_config(const Robot& robot, const Eigen::VectorXd& q_dof) {
+    if (q_dof.size() != robot.dof()) {
+        throw std::invalid_argument("Config size doesn't match DOF");
+    }
+
+    Eigen::VectorXd q_full = Eigen::VectorXd::Zero(robot.num_joints());
+    int dof_idx = 0;
+    for (int i = 0; i < robot.num_joints(); ++i) {
+        if (!robot.joint(i).is_fixed()) {
+            q_full(i) = q_dof(dof_idx++);
+        }
+    }
+    return q_full;
+}
+
+TEST_CASE("FK Validation: UR5 URDF vs MDH comparison", "[fk][validation][urdf][ur5]") {
+    // Load UR5 from ROS-Industrial URDF
+    Robot urdf_robot = Robot::from_urdf("models/UR/UR5.urdf");
+
+    // Create UR5 from validated MDH parameters
+    Robot mdh_robot = create_ur5_mdh();
+
+    REQUIRE(urdf_robot.dof() == 6);
+    REQUIRE(mdh_robot.dof() == 6);
+
+    // Home pose: [0, -90, -90, 0, 90, 0] deg - common UR5 ready position
+    Eigen::VectorXd q_home(6);
+    q_home << 0, -90*DEG2RAD, -90*DEG2RAD, 0, 90*DEG2RAD, 0;
+
+    // Compute FK for both
+    Eigen::VectorXd q_urdf = expand_config(urdf_robot, q_home);
+    SE3 T_urdf = urdf_robot.fk(q_urdf);
+    SE3 T_mdh = mdh_robot.fk(q_home);
+
+    Eigen::Vector3d pos_urdf = T_urdf.translation();
+    Eigen::Vector3d pos_mdh = T_mdh.translation();
+
+    // Apply Rz(180) to URDF to see if it matches MDH
+    Eigen::Matrix3d Rz_180;
+    Rz_180 << -1, 0, 0,
+               0, -1, 0,
+               0, 0, 1;
+    Eigen::Vector3d pos_urdf_corrected = Rz_180 * pos_urdf;
+
+    INFO("=== UR5 Home Pose Comparison ===");
+    INFO("Joint config (deg): [0, -90, -90, 0, 90, 0]");
+    INFO("");
+    INFO("MDH FK (controller frame):   [" << pos_mdh.x()*1000 << ", " << pos_mdh.y()*1000 << ", " << pos_mdh.z()*1000 << "] mm");
+    INFO("URDF FK (REP-103 frame):     [" << pos_urdf.x()*1000 << ", " << pos_urdf.y()*1000 << ", " << pos_urdf.z()*1000 << "] mm");
+    INFO("URDF FK after Rz(180):       [" << pos_urdf_corrected.x()*1000 << ", " << pos_urdf_corrected.y()*1000 << ", " << pos_urdf_corrected.z()*1000 << "] mm");
+    INFO("Controller reference:        [474.5, -109.3, 608.96] mm");
+    INFO("");
+
+    // Check that MDH matches controller reference
+    REQUIRE_THAT(pos_mdh.x()*1000, Catch::Matchers::WithinAbs(474.5, 1.0));
+    REQUIRE_THAT(pos_mdh.y()*1000, Catch::Matchers::WithinAbs(-109.3, 1.0));
+    REQUIRE_THAT(pos_mdh.z()*1000, Catch::Matchers::WithinAbs(608.96, 1.0));
+
+    // Check that URDF (after Rz180) matches MDH
+    double pos_diff = (pos_urdf_corrected - pos_mdh).norm();
+    INFO("Position diff (URDF_corrected vs MDH): " << pos_diff*1000 << " mm");
+    REQUIRE(pos_diff < 0.001);  // < 1mm
+}
+
+TEST_CASE("FK Validation: UR5 URDF zero config", "[fk][validation][urdf][ur5]") {
+    Robot robot = Robot::from_urdf("models/UR/UR5.urdf");
+    REQUIRE(robot.dof() == 6);
+
+    INFO("UR5 URDF robot loaded: " << robot.name());
+    INFO("Number of links: " << robot.num_links());
+    INFO("Number of joints: " << robot.num_joints());
+
+    // List all joints
+    for (int i = 0; i < robot.num_joints(); ++i) {
+        const Joint& j = robot.joint(i);
+        Eigen::Vector3d axis = j.axis();
+        INFO("Joint " << i << " (" << j.name() << "): axis=[" << axis.x() << "," << axis.y() << "," << axis.z() << "]");
+    }
+
+    Eigen::VectorXd q_dof = Eigen::VectorXd::Zero(6);
+    Eigen::VectorXd q = expand_config(robot, q_dof);
+    SE3 T = robot.fk(q);
+    Eigen::Vector3d pos = T.translation();
+    Eigen::Matrix3d rot = T.rotation();
+
+    INFO("FK at zero config (UR5 URDF):");
+    INFO("  Position (mm): [" << pos.x()*1000 << ", " << pos.y()*1000 << ", " << pos.z()*1000 << "]");
+    INFO("  Rotation:");
+    INFO("    [" << rot(0,0) << ", " << rot(0,1) << ", " << rot(0,2) << "]");
+    INFO("    [" << rot(1,0) << ", " << rot(1,1) << ", " << rot(1,2) << "]");
+    INFO("    [" << rot(2,0) << ", " << rot(2,1) << ", " << rot(2,2) << "]");
+
+    // Just verify reasonable reach
+    double reach = pos.norm();
+    INFO("  Reach: " << reach*1000 << " mm");
+    REQUIRE(reach > 0.3);
+    REQUIRE(reach < 2.0);
+}
+
+TEST_CASE("FK Validation: UR5 URDF vs reference data", "[fk][validation][urdf][ur5][reference]") {
+    // Load UR5 from ROS-Industrial URDF
+    Robot robot = Robot::from_urdf("models/UR/UR5.urdf");
+    REQUIRE(robot.dof() == 6);
+
+    // Load reference data (generated with MDH params)
+    FKReferenceData ref;
+    REQUIRE_NOTHROW(ref = load_reference_data("test_data/fk_reference/ur5_fk_reference.json"));
+    REQUIRE(ref.dof == 6);
+
+    INFO("Testing URDF FK against " << ref.test_cases.size() << " reference cases");
+
+    // Frame correction: URDF base_link is REP-103 (X+ forward),
+    // Reference data is in UR controller frame (X+ backward).
+    // Apply 180° Z rotation to convert URDF FK to UR controller frame.
+    Eigen::Matrix3d Rz_180;
+    Rz_180 << -1, 0, 0,
+               0, -1, 0,
+               0, 0, 1;
+    SE3 T_base_correction(Rz_180, Eigen::Vector3d::Zero());
+
+    int pos_passed = 0, pos_failed = 0;
+    double max_pos_error = 0.0, max_rot_error = 0.0;
+    double sum_pos_error = 0.0;
+
+    for (const auto& tc : ref.test_cases) {
+        // Expand 6-DOF config to full joint config (includes fixed joints)
+        Eigen::VectorXd q_full = expand_config(robot, tc.joints_rad);
+        SE3 T_urdf = robot.fk(q_full);
+
+        // Apply frame correction: T_controller = Rz(180) * T_urdf
+        SE3 T_computed = T_base_correction * T_urdf;
+
+        Eigen::Vector3d pos_ref = tc.pose_m.block<3, 1>(0, 3);
+        Eigen::Matrix3d rot_ref = tc.pose_m.block<3, 3>(0, 0);
+        Eigen::Vector3d pos_computed = T_computed.translation();
+        Eigen::Matrix3d rot_computed = T_computed.rotation();
+
+        double pos_error = (pos_computed - pos_ref).norm();
+        double rot_error = rotation_error(rot_computed, rot_ref);
+
+        max_pos_error = std::max(max_pos_error, pos_error);
+        max_rot_error = std::max(max_rot_error, rot_error);
+        sum_pos_error += pos_error;
+
+        // Position is the key validation metric
+        // Rotation differs due to URDF tool frame convention (REP-103) vs MDH convention
+        if (pos_error < POSITION_TOL_M) {
+            pos_passed++;
+        } else {
+            pos_failed++;
+            if (pos_failed <= 5) {
+                WARN("Test " << tc.id << " (" << tc.type << "): pos_err=" << pos_error*1000 << "mm");
+                WARN("  Joints (deg): [" << tc.joints_rad(0)/DEG2RAD << ", " << tc.joints_rad(1)/DEG2RAD
+                     << ", " << tc.joints_rad(2)/DEG2RAD << ", " << tc.joints_rad(3)/DEG2RAD
+                     << ", " << tc.joints_rad(4)/DEG2RAD << ", " << tc.joints_rad(5)/DEG2RAD << "]");
+                WARN("  Reference (mm): [" << pos_ref.x()*1000 << ", " << pos_ref.y()*1000 << ", " << pos_ref.z()*1000 << "]");
+                WARN("  URDF FK  (mm): [" << pos_computed.x()*1000 << ", " << pos_computed.y()*1000 << ", " << pos_computed.z()*1000 << "]");
+            }
+        }
+    }
+
+    double avg_pos_error = sum_pos_error / ref.test_cases.size();
+
+    INFO("URDF FK Validation Results (with base frame correction):");
+    INFO("  Position passed: " << pos_passed << "/" << ref.test_cases.size());
+    INFO("  Max position error: " << max_pos_error*1000 << " mm");
+    INFO("  Avg position error: " << avg_pos_error*1000 << " mm");
+    INFO("  Max rotation error: " << max_rot_error/DEG2RAD << " deg (expected ~180° due to tool frame convention)");
+
+    double pass_rate = static_cast<double>(pos_passed) / ref.test_cases.size();
+    INFO("  Position pass rate: " << (pass_rate * 100) << "%");
+
+    // Require position accuracy - URDF FK position should match MDH reference
+    // Note: Rotation differs due to tool frame convention (URDF uses REP-103)
+    REQUIRE(pass_rate >= 0.99);
+    REQUIRE(max_pos_error < 0.001);  // < 1mm max error
+}
+
+// =============================================================================
+// Config-based Robot Loading Tests (Phase 3AA)
+// =============================================================================
+
+TEST_CASE("FK Validation: UR5 from_config with REP-103 correction", "[fk][validation][config][ur5]") {
+    // Load UR5 from robospace config (includes base_frame correction)
+    Robot robot = Robot::from_config("models/UR/UR5.robospace.json");
+
+    REQUIRE(robot.name() == "UR5");
+    REQUIRE(robot.dof() == 6);
+    REQUIRE(robot.has_home());
+
+    INFO("UR5 loaded from config:");
+    INFO("  Name: " << robot.name());
+    INFO("  DOF: " << robot.dof());
+    INFO("  Num joints: " << robot.num_joints());
+    INFO("  Num links: " << robot.num_links());
+
+    // Check home configuration was loaded
+    Eigen::VectorXd home = robot.home();
+    INFO("  Home (rad): [" << home(0) << ", " << home(1) << ", " << home(2) << ", "
+         << home(3) << ", " << home(4) << ", " << home(5) << "]");
+
+    // Test FK at home pose with base_frame correction applied
+    Eigen::VectorXd q_full = expand_config(robot, home);
+    SE3 T = robot.fk(q_full);
+    Eigen::Vector3d pos = T.translation();
+
+    INFO("FK at home pose (with base_frame correction):");
+    INFO("  Position (mm): [" << pos.x()*1000 << ", " << pos.y()*1000 << ", " << pos.z()*1000 << "]");
+    INFO("  Expected: [474.5, -109.3, 608.96] mm");
+
+    // With base_frame Rz(-180°) correction, FK should match controller frame
+    REQUIRE_THAT(pos.x()*1000, Catch::Matchers::WithinAbs(474.5, 1.0));
+    REQUIRE_THAT(pos.y()*1000, Catch::Matchers::WithinAbs(-109.3, 1.0));
+    REQUIRE_THAT(pos.z()*1000, Catch::Matchers::WithinAbs(608.96, 1.0));
+}
+
+TEST_CASE("FK Validation: UR5 from_config vs reference data", "[fk][validation][config][ur5][reference]") {
+    // Load UR5 from config
+    Robot robot = Robot::from_config("models/UR/UR5.robospace.json");
+    REQUIRE(robot.dof() == 6);
+
+    // Load reference data
+    FKReferenceData ref;
+    REQUIRE_NOTHROW(ref = load_reference_data("test_data/fk_reference/ur5_fk_reference.json"));
+    REQUIRE(ref.test_cases.size() > 0);
+
+    INFO("Testing " << ref.test_cases.size() << " FK cases for UR5 from_config");
+
+    int passed = 0;
+    double max_pos_error = 0.0;
+
+    for (const auto& tc : ref.test_cases) {
+        Eigen::VectorXd q_full = expand_config(robot, tc.joints_rad);
+        SE3 T_computed = robot.fk(q_full);
+
+        Eigen::Vector3d pos_ref = tc.pose_m.block<3, 1>(0, 3);
+        Eigen::Vector3d pos_computed = T_computed.translation();
+
+        double pos_error = (pos_computed - pos_ref).norm();
+        max_pos_error = std::max(max_pos_error, pos_error);
+
+        if (pos_error < POSITION_TOL_M) {
+            passed++;
+        }
+    }
+
+    double pass_rate = static_cast<double>(passed) / ref.test_cases.size();
+    INFO("Results: " << passed << "/" << ref.test_cases.size() << " passed");
+    INFO("Max position error: " << max_pos_error*1000 << " mm");
+    INFO("Pass rate: " << pass_rate*100 << "%");
+
+    // With base_frame correction, should match reference data
+    REQUIRE(pass_rate >= 0.99);
+    REQUIRE(max_pos_error < 0.001);  // < 1mm
 }

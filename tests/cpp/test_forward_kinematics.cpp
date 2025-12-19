@@ -225,7 +225,7 @@ TEST_CASE("FK: Base frame offset applied correctly", "[fk][base()]") {
 
     SE3 base_offset = SE3::Translation(Eigen::Vector3d(1.0, 0.0, 0.0)) *
                       SE3(SO3::RotZ(M_PI / 2.0).matrix(), Eigen::Vector3d::Zero());
-    robot.set_base(base_offset);
+    robot.set_base_pose(base_offset);
 
     Eigen::VectorXd q = Eigen::Vector2d(0.0, 0.0);
     SE3 T_tcp = robot.fk(q);

@@ -3,8 +3,8 @@
 namespace robospace {
 namespace model {
 
-Frame::Frame(const std::string& name, const math::SE3& pose)
-    : Entity(name, Type::FRAME) {
+Frame::Frame(const std::string& name, const math::SE3& pose, Entity* parent)
+    : Entity(name, Type::FRAME, parent) {
     set_pose(pose);
 }
 
