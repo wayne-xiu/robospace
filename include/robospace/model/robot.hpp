@@ -19,6 +19,11 @@ class Robot : public Entity {
 public:
     // Construction
     explicit Robot(const std::string& name, Entity* parent = nullptr);
+    Robot(const Robot& other);
+    Robot& operator=(const Robot& other);
+    Robot(Robot&& other) noexcept;
+    Robot& operator=(Robot&& other) noexcept;
+    ~Robot() override;
     static Robot from_urdf(const std::string& urdf_path);
     static Robot from_urdf_string(const std::string& urdf_string);
     static Robot from_config(const std::string& config_path);
@@ -32,6 +37,7 @@ public:
     int num_joints() const { return tree_.num_joints(); }
     bool is_valid() const { return tree_.is_valid(); }
     std::pair<Eigen::VectorXd, Eigen::VectorXd> joint_limits() const;
+    std::pair<Eigen::VectorXd, Eigen::VectorXd> joint_limits_full() const;
 
     // Joint space configuration (stateful API)
     const Eigen::VectorXd& config() const { return q_; }
@@ -40,6 +46,10 @@ public:
     const Eigen::VectorXd& home() const { return home_position_; }
     void set_home(const Eigen::VectorXd& q);
     bool has_home() const { return home_position_.size() > 0; }
+
+    // Configuration helpers (DOF <-> full joint vector)
+    Eigen::VectorXd expand_config(const Eigen::VectorXd& q_dof) const;
+    Eigen::VectorXd compress_config(const Eigen::VectorXd& q_full) const;
 
     // Forward kinematics - Stateless API (for planning, optimization, multi-threaded)
     math::SE3 fk(const Eigen::VectorXd& q) const;
@@ -99,6 +109,11 @@ public:
     math::SE3 pose() const override;
 
 private:
+    Eigen::VectorXd normalize_config(const Eigen::VectorXd& q) const;
+    void update_link_poses(const Eigen::VectorXd& q_full);
+    void rebuild_entity_graph();
+    void detach_entity_graph();
+
     KinematicTree tree_;
     Frame base_frame_;    // Start of kinematic chain (pose includes REP-103 correction if needed)
     Frame flange_frame_;  // End of kinematic chain (tool attachment point)

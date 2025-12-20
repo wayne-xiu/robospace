@@ -104,8 +104,7 @@ Developer docs live in `docs/nopub/` (excluded from git). See **Development Stat
 
 - *Modern Robotics* by Kevin Lynch and Frank Park
 - *Robotics, Vision & Control* by Peter Corke
-- RoboDK Item pattern
-- Spatial Math Toolbox (MATLAB/Python)
+- Spatial Math Toolbox
 
 ## License
 

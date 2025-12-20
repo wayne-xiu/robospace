@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include <robospace/math/so3.hpp>
+#include <robospace/math/so3_algebra.hpp>
 
 using namespace robospace::math;
 

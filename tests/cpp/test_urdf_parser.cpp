@@ -198,6 +198,43 @@ TEST_CASE("URDF Parser: from_urdf_string", "[urdf][parser]") {
     REQUIRE(robot.has_joint("joint1"));
 }
 
+TEST_CASE("URDF Parser: Out-of-order elements are reordered", "[urdf][parser][ordering]") {
+    Robot robot = Robot::from_urdf("test_data/simple_2r_swapped.urdf");
+
+    REQUIRE(robot.num_links() == 3);
+    REQUIRE(robot.num_joints() == 2);
+
+    // Links should be ordered as a serial chain: base -> link1 -> link2
+    REQUIRE(robot.link(0).name() == "base_link");
+    REQUIRE(robot.link(1).name() == "link1");
+    REQUIRE(robot.link(2).name() == "link2");
+
+    // Joints should follow the same order
+    REQUIRE(robot.joint(0).name() == "joint1");
+    REQUIRE(robot.joint(1).name() == "joint2");
+}
+
+TEST_CASE("URDF Parser: Fixed joints map configs correctly", "[urdf][parser][fixed]") {
+    Robot robot = Robot::from_urdf("test_data/simple_2r_fixed.urdf");
+
+    REQUIRE(robot.num_joints() == 3);
+    REQUIRE(robot.dof() == 2);
+    REQUIRE(robot.joint(0).is_fixed());
+
+    Eigen::VectorXd q_dof(2);
+    q_dof << 0.2, -0.5;
+
+    Eigen::VectorXd q_full = robot.expand_config(q_dof);
+    REQUIRE(q_full.size() == robot.num_joints());
+
+    Eigen::VectorXd q_roundtrip = robot.compress_config(q_full);
+    REQUIRE(q_roundtrip.isApprox(q_dof));
+
+    SE3 T_dof = robot.fk(q_dof);
+    SE3 T_full = robot.fk(q_full);
+    REQUIRE(T_dof.isApprox(T_full));
+}
+
 TEST_CASE("URDF Parser: Error handling", "[urdf][parser][error]") {
     SECTION("File not found") {
         REQUIRE_THROWS_AS(Robot::from_urdf("nonexistent.urdf"), std::runtime_error);

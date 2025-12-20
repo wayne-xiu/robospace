@@ -4,12 +4,12 @@
 #include <sstream>
 #include <stdexcept>
 #include <cmath>
+#include <unordered_set>
 
 namespace robospace {
 namespace model {
 
 Robot URDFParser::parse_file(const std::string& urdf_path) {
-    // Load file into string
     std::ifstream file(urdf_path);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open URDF file: " + urdf_path);
@@ -40,24 +40,247 @@ Robot URDFParser::parse_robot(tinyxml2::XMLDocument& doc) {
     std::string robot_name = get_attribute(robot_elem, "name");
     Robot robot(robot_name);
 
-    // First pass: parse and add all links
-    std::unordered_map<std::string, int> link_name_to_id;
-    int link_id = 0;
+    struct JointTopology {
+        tinyxml2::XMLElement* element = nullptr;
+        std::string name;
+        std::string parent;
+        std::string child;
+        bool is_fixed = false;
+    };
 
+    // First pass: parse links
+    std::unordered_map<std::string, Link> links_by_name;
     for (auto* link_elem = robot_elem->FirstChildElement("link");
          link_elem;
          link_elem = link_elem->NextSiblingElement("link")) {
         Link link = parse_link(link_elem);
         std::string link_name = link.name();
-        robot.add_link(link);
-        link_name_to_id[link_name] = link_id++;
+        if (links_by_name.find(link_name) != links_by_name.end()) {
+            throw std::runtime_error("Duplicate link name in URDF: " + link_name);
+        }
+        links_by_name.emplace(link_name, link);
     }
 
-    // Second pass: parse and add all joints
+    if (links_by_name.empty()) {
+        throw std::runtime_error("URDF has no <link> elements");
+    }
+
+    // Second pass: parse joint topology for ordering
+    std::vector<JointTopology> joints;
+    std::unordered_map<std::string, std::vector<int>> joints_by_parent;
+    std::unordered_set<std::string> child_links;
+
     for (auto* joint_elem = robot_elem->FirstChildElement("joint");
          joint_elem;
          joint_elem = joint_elem->NextSiblingElement("joint")) {
-        Joint joint = parse_joint(joint_elem, link_name_to_id);
+        auto* parent_elem = joint_elem->FirstChildElement("parent");
+        auto* child_elem = joint_elem->FirstChildElement("child");
+        if (!parent_elem || !child_elem) {
+            throw std::runtime_error("Joint missing parent or child link");
+        }
+
+        std::string joint_name = get_attribute(joint_elem, "name");
+        std::string type_str = get_attribute(joint_elem, "type");
+        bool is_fixed = false;
+        if (type_str == "fixed") {
+            is_fixed = true;
+        } else if (type_str == "revolute" || type_str == "prismatic" ||
+                   type_str == "continuous") {
+            is_fixed = false;
+        } else {
+            throw std::runtime_error("Unsupported joint type: " + type_str);
+        }
+        std::string parent_name = get_attribute(parent_elem, "link");
+        std::string child_name = get_attribute(child_elem, "link");
+
+        if (links_by_name.find(parent_name) == links_by_name.end()) {
+            throw std::runtime_error("Parent link not found: " + parent_name);
+        }
+        if (links_by_name.find(child_name) == links_by_name.end()) {
+            throw std::runtime_error("Child link not found: " + child_name);
+        }
+
+        if (!child_links.insert(child_name).second) {
+            throw std::runtime_error("Link has multiple parents: " + child_name);
+        }
+
+        int joint_index = static_cast<int>(joints.size());
+        joints.push_back({joint_elem, joint_name, parent_name, child_name, is_fixed});
+        joints_by_parent[parent_name].push_back(joint_index);
+    }
+
+    if (joints.empty()) {
+        if (links_by_name.size() == 1) {
+            const auto& link_name = links_by_name.begin()->first;
+            robot.add_link(links_by_name.at(link_name));
+            return robot;
+        }
+        throw std::runtime_error("URDF has multiple links but no joints");
+    }
+
+    // Find root link (never appears as a child)
+    std::string root_link;
+    for (const auto& kv : links_by_name) {
+        if (child_links.find(kv.first) == child_links.end()) {
+            if (!root_link.empty()) {
+                throw std::runtime_error("Multiple root links detected in URDF");
+            }
+            root_link = kv.first;
+        }
+    }
+
+    if (root_link.empty()) {
+        throw std::runtime_error("No root link detected in URDF");
+    }
+
+    // Helper: detect whether a subtree contains any active (non-fixed) joints
+    std::unordered_map<std::string, bool> active_cache;
+    std::unordered_set<std::string> active_stack;
+    auto subtree_has_active = [&](const std::string& link_name, const auto& self) -> bool {
+        auto cached = active_cache.find(link_name);
+        if (cached != active_cache.end()) {
+            return cached->second;
+        }
+
+        if (!active_stack.insert(link_name).second) {
+            throw std::runtime_error("Cycle detected in URDF at link: " + link_name);
+        }
+
+        bool has_active = false;
+        auto it = joints_by_parent.find(link_name);
+        if (it != joints_by_parent.end()) {
+            for (int joint_index : it->second) {
+                if (!joints[joint_index].is_fixed) {
+                    has_active = true;
+                    break;
+                }
+                if (self(joints[joint_index].child, self)) {
+                    has_active = true;
+                    break;
+                }
+            }
+        }
+
+        active_stack.erase(link_name);
+        active_cache[link_name] = has_active;
+        return has_active;
+    };
+
+    // Helper: maximum depth from this link (number of joints to deepest leaf)
+    std::unordered_map<std::string, int> depth_cache;
+    std::unordered_set<std::string> depth_stack;
+    auto subtree_depth = [&](const std::string& link_name, const auto& self) -> int {
+        auto cached = depth_cache.find(link_name);
+        if (cached != depth_cache.end()) {
+            return cached->second;
+        }
+
+        if (!depth_stack.insert(link_name).second) {
+            throw std::runtime_error("Cycle detected in URDF at link: " + link_name);
+        }
+
+        int max_depth = 0;
+        auto it = joints_by_parent.find(link_name);
+        if (it != joints_by_parent.end()) {
+            for (int joint_index : it->second) {
+                int depth = 1 + self(joints[joint_index].child, self);
+                if (depth > max_depth) {
+                    max_depth = depth;
+                }
+            }
+        }
+
+        depth_stack.erase(link_name);
+        depth_cache[link_name] = max_depth;
+        return max_depth;
+    };
+
+    // Traverse serial chain from root
+    std::vector<std::string> ordered_links;
+    std::vector<int> ordered_joints;
+    std::unordered_set<std::string> visited_links;
+
+    std::string current = root_link;
+    ordered_links.push_back(current);
+    visited_links.insert(current);
+
+    while (true) {
+        auto it = joints_by_parent.find(current);
+        if (it == joints_by_parent.end()) {
+            break;
+        }
+        std::vector<int> active_candidates;
+        for (int joint_index : it->second) {
+            if (!joints[joint_index].is_fixed ||
+                subtree_has_active(joints[joint_index].child, subtree_has_active)) {
+                active_candidates.push_back(joint_index);
+            }
+        }
+
+        int joint_index = -1;
+        if (active_candidates.size() > 1) {
+            throw std::runtime_error("Branching detected at link: " + current);
+        }
+        if (active_candidates.size() == 1) {
+            joint_index = active_candidates.front();
+        } else {
+            int best_depth = -1;
+            for (int candidate : it->second) {
+                int depth = 1 + subtree_depth(joints[candidate].child, subtree_depth);
+                if (depth > best_depth) {
+                    best_depth = depth;
+                    joint_index = candidate;
+                } else if (depth == best_depth && joint_index >= 0) {
+                    if (joints[candidate].name < joints[joint_index].name) {
+                        joint_index = candidate;
+                    }
+                }
+            }
+        }
+
+        if (joint_index < 0) {
+            break;
+        }
+
+        ordered_joints.push_back(joint_index);
+        const std::string& child = joints[joint_index].child;
+
+        if (!visited_links.insert(child).second) {
+            throw std::runtime_error("Cycle detected in URDF at link: " + child);
+        }
+
+        ordered_links.push_back(child);
+        current = child;
+    }
+
+    int active_total = 0;
+    int active_in_chain = 0;
+    for (const auto& joint : joints) {
+        if (!joint.is_fixed) {
+            active_total++;
+        }
+    }
+    for (int joint_index : ordered_joints) {
+        if (!joints[joint_index].is_fixed) {
+            active_in_chain++;
+        }
+    }
+
+    if (active_in_chain != active_total) {
+        throw std::runtime_error("URDF is not a single serial chain (active joints disconnected)");
+    }
+
+    // Add links in chain order
+    std::unordered_map<std::string, int> link_name_to_id;
+    int link_id = 0;
+    for (const auto& link_name : ordered_links) {
+        robot.add_link(links_by_name.at(link_name));
+        link_name_to_id[link_name] = link_id++;
+    }
+
+    // Add joints in chain order
+    for (int joint_index : ordered_joints) {
+        Joint joint = parse_joint(joints[joint_index].element, link_name_to_id);
         robot.add_joint(joint);
     }
 
@@ -68,19 +291,16 @@ Link URDFParser::parse_link(tinyxml2::XMLElement* link_elem) {
     std::string name = get_attribute(link_elem, "name");
     Link link(name);
 
-    // Parse inertial properties (optional)
     auto* inertial_elem = link_elem->FirstChildElement("inertial");
     if (inertial_elem) {
         parse_inertial(inertial_elem, link);
     }
 
-    // Parse visual geometry (optional)
     auto* visual_elem = link_elem->FirstChildElement("visual");
     if (visual_elem) {
         parse_visual(visual_elem, link);
     }
 
-    // Parse collision geometry (optional)
     auto* collision_elem = link_elem->FirstChildElement("collision");
     if (collision_elem) {
         parse_collision(collision_elem, link);
@@ -90,21 +310,18 @@ Link URDFParser::parse_link(tinyxml2::XMLElement* link_elem) {
 }
 
 void URDFParser::parse_inertial(tinyxml2::XMLElement* inertial_elem, Link& link) {
-    // Parse mass
     auto* mass_elem = inertial_elem->FirstChildElement("mass");
     if (mass_elem) {
         double mass = std::stod(get_attribute(mass_elem, "value"));
         link.set_mass(mass);
     }
 
-    // Parse center of mass (origin)
     auto* origin_elem = inertial_elem->FirstChildElement("origin");
     if (origin_elem) {
         math::SE3 com_pose = parse_origin(origin_elem);
         link.set_com(com_pose.translation());
     }
 
-    // Parse inertia tensor
     auto* inertia_elem = inertial_elem->FirstChildElement("inertia");
     if (inertia_elem) {
         double ixx = std::stod(get_attribute(inertia_elem, "ixx"));
@@ -123,7 +340,6 @@ void URDFParser::parse_inertial(tinyxml2::XMLElement* inertial_elem, Link& link)
 }
 
 void URDFParser::parse_visual(tinyxml2::XMLElement* visual_elem, Link& link) {
-    // Parse geometry element
     auto* geometry_elem = visual_elem->FirstChildElement("geometry");
     if (geometry_elem) {
         auto* mesh_elem = geometry_elem->FirstChildElement("mesh");
@@ -135,7 +351,6 @@ void URDFParser::parse_visual(tinyxml2::XMLElement* visual_elem, Link& link) {
 }
 
 void URDFParser::parse_collision(tinyxml2::XMLElement* collision_elem, Link& link) {
-    // Parse geometry element
     auto* geometry_elem = collision_elem->FirstChildElement("geometry");
     if (geometry_elem) {
         auto* mesh_elem = geometry_elem->FirstChildElement("mesh");
@@ -151,7 +366,6 @@ Joint URDFParser::parse_joint(tinyxml2::XMLElement* joint_elem,
     std::string name = get_attribute(joint_elem, "name");
     std::string type_str = get_attribute(joint_elem, "type");
 
-    // Parse joint type
     JointType type;
     if (type_str == "revolute") {
         type = JointType::REVOLUTE;
@@ -165,7 +379,6 @@ Joint URDFParser::parse_joint(tinyxml2::XMLElement* joint_elem,
         throw std::runtime_error("Unsupported joint type: " + type_str);
     }
 
-    // Parse parent and child links
     auto* parent_elem = joint_elem->FirstChildElement("parent");
     auto* child_elem = joint_elem->FirstChildElement("child");
     if (!parent_elem || !child_elem) {
@@ -190,14 +403,12 @@ Joint URDFParser::parse_joint(tinyxml2::XMLElement* joint_elem,
 
     Joint joint(name, type, parent_id, child_id);
 
-    // Parse origin (transform from parent to child)
     auto* origin_elem = joint_elem->FirstChildElement("origin");
     if (origin_elem) {
         math::SE3 origin = parse_origin(origin_elem);
         joint.set_origin(origin);
     }
 
-    // Parse axis (for revolute/prismatic joints)
     auto* axis_elem = joint_elem->FirstChildElement("axis");
     if (axis_elem) {
         std::string xyz_str = get_attribute(axis_elem, "xyz");
@@ -205,7 +416,6 @@ Joint URDFParser::parse_joint(tinyxml2::XMLElement* joint_elem,
         joint.set_axis(axis.normalized());
     }
 
-    // Parse joint limits (for revolute/prismatic joints)
     auto* limit_elem = joint_elem->FirstChildElement("limit");
     if (limit_elem) {
         parse_joint_limits(limit_elem, joint);

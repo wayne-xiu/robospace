@@ -21,6 +21,10 @@ public:
     enum class Type { FRAME, LINK, ROBOT, TOOL, TARGET };
 
     Entity(const std::string& name, Type type, Entity* parent = nullptr);
+    Entity(const Entity& other);
+    Entity& operator=(const Entity& other);
+    Entity(Entity&& other) noexcept;
+    Entity& operator=(Entity&& other) noexcept;
     virtual ~Entity();
 
     // Identification

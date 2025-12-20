@@ -2,16 +2,16 @@
 
 # Math module
 set(MATH_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/math/se3.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/se3_algebra.cpp
     ${CMAKE_SOURCE_DIR}/src/math/SE3.cpp
-    ${CMAKE_SOURCE_DIR}/src/math/so3.cpp
+    ${CMAKE_SOURCE_DIR}/src/math/so3_algebra.cpp
     ${CMAKE_SOURCE_DIR}/src/math/SO3.cpp
 )
 
 set(MATH_HEADERS
-    ${CMAKE_SOURCE_DIR}/include/robospace/math/se3.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/se3_algebra.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/math/SE3.hpp
-    ${CMAKE_SOURCE_DIR}/include/robospace/math/so3.hpp
+    ${CMAKE_SOURCE_DIR}/include/robospace/math/so3_algebra.hpp
     ${CMAKE_SOURCE_DIR}/include/robospace/math/SO3.hpp
 )
 

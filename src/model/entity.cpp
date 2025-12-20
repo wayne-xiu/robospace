@@ -1,5 +1,6 @@
 #include <robospace/model/entity.hpp>
 #include <algorithm>
+#include <utility>
 
 namespace robospace {
 namespace model {
@@ -9,6 +10,113 @@ Entity::Entity(const std::string& name, Type type, Entity* parent)
     if (parent != nullptr) {
         set_parent(parent);
     }
+}
+
+Entity::Entity(const Entity& other)
+    : name_(other.name_), type_(other.type_), pose_(other.pose_) {}
+
+Entity& Entity::operator=(const Entity& other) {
+    if (this == &other) {
+        return *this;
+    }
+
+    if (parent_ != nullptr) {
+        parent_->remove_child(this);
+    }
+    for (auto* child : children_) {
+        child->parent_ = nullptr;
+    }
+    children_.clear();
+
+    name_ = other.name_;
+    type_ = other.type_;
+    pose_ = other.pose_;
+    parent_ = nullptr;
+
+    return *this;
+}
+
+Entity::Entity(Entity&& other) noexcept
+    : name_(std::move(other.name_)),
+      type_(other.type_),
+      pose_(other.pose_),
+      parent_(other.parent_),
+      children_(std::move(other.children_)) {
+    if (parent_ != nullptr) {
+        bool replaced = false;
+        for (auto*& child : parent_->children_) {
+            if (child == &other) {
+                child = this;
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            auto it = std::find(parent_->children_.begin(), parent_->children_.end(), this);
+            if (it == parent_->children_.end()) {
+                parent_->children_.push_back(this);
+            }
+        }
+    }
+
+    for (auto* child : children_) {
+        if (child != nullptr) {
+            child->parent_ = this;
+        }
+    }
+
+    other.parent_ = nullptr;
+    other.children_.clear();
+}
+
+Entity& Entity::operator=(Entity&& other) noexcept {
+    if (this == &other) {
+        return *this;
+    }
+
+    if (parent_ != nullptr) {
+        parent_->remove_child(this);
+    }
+    for (auto* child : children_) {
+        if (child != nullptr) {
+            child->parent_ = nullptr;
+        }
+    }
+    children_.clear();
+
+    name_ = std::move(other.name_);
+    type_ = other.type_;
+    pose_ = other.pose_;
+    parent_ = other.parent_;
+    children_ = std::move(other.children_);
+
+    if (parent_ != nullptr) {
+        bool replaced = false;
+        for (auto*& child : parent_->children_) {
+            if (child == &other) {
+                child = this;
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            auto it = std::find(parent_->children_.begin(), parent_->children_.end(), this);
+            if (it == parent_->children_.end()) {
+                parent_->children_.push_back(this);
+            }
+        }
+    }
+
+    for (auto* child : children_) {
+        if (child != nullptr) {
+            child->parent_ = this;
+        }
+    }
+
+    other.parent_ = nullptr;
+    other.children_.clear();
+
+    return *this;
 }
 
 Entity::~Entity() {
