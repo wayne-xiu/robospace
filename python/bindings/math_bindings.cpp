@@ -4,8 +4,8 @@
 
 #include "robospace/math/SE3.hpp"
 #include "robospace/math/SO3.hpp"
-#include "robospace/math/se3.hpp"
-#include "robospace/math/so3.hpp"
+#include "robospace/math/se3_algebra.hpp"
+#include "robospace/math/so3_algebra.hpp"
 
 namespace py = pybind11;
 using namespace robospace::math;

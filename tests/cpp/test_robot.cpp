@@ -178,6 +178,46 @@ TEST_CASE("Robot: Base frame", "[robot]") {
                  Catch::Matchers::WithinAbs(-0.525, 1e-10));
 }
 
+TEST_CASE("Robot: Frame parenting and link poses", "[robot]") {
+    Robot robot = create_2dof_robot();
+
+    REQUIRE(robot.base_frame().parent() == &robot);
+    REQUIRE(robot.link(0).parent() == &robot.base_frame());
+    REQUIRE(robot.flange_frame().parent() == &robot.link(robot.num_links() - 1));
+
+    Tool tool("tcp", SE3::Translation(Eigen::Vector3d(0, 0, 0.1)));
+    int tool_id = robot.add_tool(tool);
+    REQUIRE(robot.tool(tool_id).parent() == &robot.flange_frame());
+
+    SE3 base_offset = SE3::Translation(Eigen::Vector3d(0.1, 0.2, 0.3));
+    robot.set_base_pose(base_offset);
+
+    Eigen::VectorXd q(2);
+    q << 0.3, -0.4;
+    robot.set_config(q);
+
+    SE3 link_pose = robot.link(2).pose_world();
+    SE3 fk_pose = robot.fk(q);
+    REQUIRE(link_pose.isApprox(fk_pose));
+}
+
+TEST_CASE("Robot: Copy preserves entity graph", "[robot]") {
+    Robot robot = create_2dof_robot();
+
+    Eigen::VectorXd q(2);
+    q << 0.3, -0.4;
+    robot.set_config(q);
+
+    Robot copy = robot;
+
+    const auto& base_children = copy.base_frame().children();
+    REQUIRE(base_children.size() == 1);
+    REQUIRE(base_children[0] == &copy.link(0));
+    REQUIRE(copy.link(0).parent() == &copy.base_frame());
+    REQUIRE(copy.flange_frame().parent() == &copy.link(copy.num_links() - 1));
+    REQUIRE(copy.fk(q).isApprox(robot.fk(q)));
+}
+
 TEST_CASE("Robot: Active tool management", "[robot]") {
     Robot robot = create_2dof_robot();
 

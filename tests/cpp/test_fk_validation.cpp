@@ -924,25 +924,6 @@ TEST_CASE("FK Validation: Yaskawa GP12 zero config", "[fk][validation][yaskawa]"
 // URDF-based FK Validation Tests (Phase 3AA)
 // =============================================================================
 
-/**
- * Helper: Expand DOF-sized config to full joint config (including fixed joints).
- * This is needed because URDF robots have fixed joints that the FK expects.
- */
-Eigen::VectorXd expand_config(const Robot& robot, const Eigen::VectorXd& q_dof) {
-    if (q_dof.size() != robot.dof()) {
-        throw std::invalid_argument("Config size doesn't match DOF");
-    }
-
-    Eigen::VectorXd q_full = Eigen::VectorXd::Zero(robot.num_joints());
-    int dof_idx = 0;
-    for (int i = 0; i < robot.num_joints(); ++i) {
-        if (!robot.joint(i).is_fixed()) {
-            q_full(i) = q_dof(dof_idx++);
-        }
-    }
-    return q_full;
-}
-
 TEST_CASE("FK Validation: UR5 URDF vs MDH comparison", "[fk][validation][urdf][ur5]") {
     // Load UR5 from ROS-Industrial URDF
     Robot urdf_robot = Robot::from_urdf("models/UR/UR5.urdf");
@@ -958,8 +939,7 @@ TEST_CASE("FK Validation: UR5 URDF vs MDH comparison", "[fk][validation][urdf][u
     q_home << 0, -90*DEG2RAD, -90*DEG2RAD, 0, 90*DEG2RAD, 0;
 
     // Compute FK for both
-    Eigen::VectorXd q_urdf = expand_config(urdf_robot, q_home);
-    SE3 T_urdf = urdf_robot.fk(q_urdf);
+    SE3 T_urdf = urdf_robot.fk(q_home);
     SE3 T_mdh = mdh_robot.fk(q_home);
 
     Eigen::Vector3d pos_urdf = T_urdf.translation();
@@ -1008,8 +988,7 @@ TEST_CASE("FK Validation: UR5 URDF zero config", "[fk][validation][urdf][ur5]") 
     }
 
     Eigen::VectorXd q_dof = Eigen::VectorXd::Zero(6);
-    Eigen::VectorXd q = expand_config(robot, q_dof);
-    SE3 T = robot.fk(q);
+    SE3 T = robot.fk(q_dof);
     Eigen::Vector3d pos = T.translation();
     Eigen::Matrix3d rot = T.rotation();
 
@@ -1053,9 +1032,7 @@ TEST_CASE("FK Validation: UR5 URDF vs reference data", "[fk][validation][urdf][u
     double sum_pos_error = 0.0;
 
     for (const auto& tc : ref.test_cases) {
-        // Expand 6-DOF config to full joint config (includes fixed joints)
-        Eigen::VectorXd q_full = expand_config(robot, tc.joints_rad);
-        SE3 T_urdf = robot.fk(q_full);
+        SE3 T_urdf = robot.fk(tc.joints_rad);
 
         // Apply frame correction: T_controller = Rz(180) * T_urdf
         SE3 T_computed = T_base_correction * T_urdf;
@@ -1130,8 +1107,7 @@ TEST_CASE("FK Validation: UR5 from_config with REP-103 correction", "[fk][valida
          << home(3) << ", " << home(4) << ", " << home(5) << "]");
 
     // Test FK at home pose with base_frame correction applied
-    Eigen::VectorXd q_full = expand_config(robot, home);
-    SE3 T = robot.fk(q_full);
+    SE3 T = robot.fk(home);
     Eigen::Vector3d pos = T.translation();
 
     INFO("FK at home pose (with base_frame correction):");
@@ -1160,8 +1136,7 @@ TEST_CASE("FK Validation: UR5 from_config vs reference data", "[fk][validation][
     double max_pos_error = 0.0;
 
     for (const auto& tc : ref.test_cases) {
-        Eigen::VectorXd q_full = expand_config(robot, tc.joints_rad);
-        SE3 T_computed = robot.fk(q_full);
+        SE3 T_computed = robot.fk(tc.joints_rad);
 
         Eigen::Vector3d pos_ref = tc.pose_m.block<3, 1>(0, 3);
         Eigen::Vector3d pos_computed = T_computed.translation();
